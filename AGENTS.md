@@ -33,5 +33,7 @@ Rules:
 
 - Work step by step.
 - Before starting the next functional step, propose it and wait for explicit approval.
+- Split work into reviewable commits of reasonable size; avoid mixing unrelated decisions in one commit.
+- After each code step, review the written code with a fresh eye, run the relevant checks, and proactively ask whether to commit the completed reviewable step.
 - Run focused tests after behavior changes; use `go test ./...` when the change is broad or cheap.
 - Do not commit local configuration files or secrets.
