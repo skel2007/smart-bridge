@@ -21,8 +21,12 @@ A vendor-neutral class of control, such as `on_off`, `range`, `color`, or `mode`
 _Avoid_: Tuya type, Yandex API capability type
 
 **Capability Instance**:
-The specific thing controlled by a **Capability**, such as `power`, `brightness`, `color_temperature`, `color_temperature_level`, `color`, or `work_mode`.
+The specific thing controlled by a **Capability**, such as `power`, `brightness`, `color_temperature_level`, `color`, or `work_mode`.
 _Avoid_: Tuya code, Yandex API instance
+
+**Capability Command**:
+A vendor-neutral desired state change for exactly one **Capability** of a known **Device**.
+_Avoid_: Tuya command, command payload, device command
 
 **Property**:
 A vendor-neutral read-only characteristic reported by a **Device**, such as temperature, humidity, or battery level.
@@ -36,6 +40,12 @@ _Avoid_: Tuya status, Yandex API property
 - A **Device Type** is mapped from upstream platform categories and later mapped to downstream platform device types.
 - A **Capability** is mapped from upstream platform functions and later mapped to downstream platform capabilities.
 - A **Capability** has a **Capability Type** and a **Capability Instance**.
+- A **Capability Command** targets one **Capability**; the target **Device** identity is provided outside the command.
+- A **Capability Command** carries required typed desired state and does not carry capability parameters.
+- **Capability Command** state means desired **Capability** state.
+- A **Capability Command** does not carry **Capability Type**; its typed payload and **Capability Instance** identify what is being changed.
+- **Capability Command** owns domain validation for its own invariants before any upstream adapter conversion.
+- A valid **Capability Command** has one known **Capability Instance**, exactly one typed payload, matching instance and payload kind, and state within the domain range for that kind.
 - Known **Range Capabilities** use vendor-neutral domain scales, not upstream platform scales. For example, `brightness` and `color_temperature_level` are represented as `0..100`.
 - Upstream adapter specifications are used for conversion back to platform commands and are not stored in domain **Capabilities**. See `docs/adr/0001-domain-capabilities-and-vendor-specs.md`.
 - Unknown upstream functions are not **Capabilities** until smart-bridge understands their meaning.

@@ -24,7 +24,6 @@ type CapabilityInstance string
 const (
 	CapabilityInstancePower                 CapabilityInstance = "power"
 	CapabilityInstanceBrightness            CapabilityInstance = "brightness"
-	CapabilityInstanceColorTemperature      CapabilityInstance = "color_temperature"
 	CapabilityInstanceColorTemperatureLevel CapabilityInstance = "color_temperature_level"
 	CapabilityInstanceColor                 CapabilityInstance = "color"
 	CapabilityInstanceWorkMode              CapabilityInstance = "work_mode"

@@ -21,6 +21,8 @@ Domain capabilities use vendor-neutral names and scales. Known range capabilitie
 
 Domain capability objects do not store upstream command metadata such as Tuya function code, value range, scale, or step. That metadata belongs to the upstream adapter.
 
+Domain capability commands are also vendor-neutral. A command targets one known capability instance and carries typed desired state, but it does not carry upstream command metadata or raw platform payloads.
+
 Upstream adapters are responsible for both read and write conversion:
 
 - on read, map upstream specifications and status into normalized domain capabilities;
@@ -33,6 +35,8 @@ Adapters may cache upstream specifications. The cache belongs in the adapter or 
 The domain model stays vendor-neutral and can be reused by CLI, future HTTP API, and downstream integrations.
 
 Write operations must not try to reverse-map from a domain capability alone. They need access to the relevant upstream specification or a cached adapter-specific command descriptor.
+
+Command validation can check domain invariants such as known capability instances, payload shape, and normalized value ranges. Adapter-specific validation still needs the upstream specification, for example to check allowed modes or convert normalized ranges to device ranges.
 
 For a short-lived CLI process, reading specifications during a command is acceptable. For a future long-running HTTP service, caching specifications in the adapter/service layer should avoid repeated upstream API calls.
 
