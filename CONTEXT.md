@@ -21,7 +21,7 @@ A vendor-neutral controllable feature of a **Device**, such as power, brightness
 _Avoid_: Tuya function, Tuya status, Yandex API capability
 
 **Capability Type**:
-A vendor-neutral class of control, such as `on_off`, `range`, `color`, `mode`, or `unknown`.
+A vendor-neutral class of control, such as `on_off`, `range`, `color`, or `mode`.
 _Avoid_: Tuya type, Yandex API capability type
 
 **Capability Instance**:
