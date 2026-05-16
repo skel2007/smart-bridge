@@ -20,7 +20,7 @@ func TestListDevices(t *testing.T) {
 	deviceList, err := client.ListDevices(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, []devices.Device{
-		{ID: "dev-1", Name: "Desk lamp", Category: "dj", Online: true},
+		{ID: "dev-1", Name: "Desk lamp", Type: devices.DeviceTypeLight, Online: true},
 	}, deviceList)
 	require.Equal(t, []string{tokenURI, devicesURI}, api.requestURIs())
 }

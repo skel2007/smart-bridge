@@ -21,9 +21,22 @@ func mapDevice(device tuyaDevice) devices.Device {
 	}
 
 	return devices.Device{
-		ID:       device.ID,
-		Name:     name,
-		Category: device.Category,
-		Online:   device.IsOnline,
+		ID:     device.ID,
+		Name:   name,
+		Type:   mapDeviceType(device.Category),
+		Online: device.IsOnline,
+	}
+}
+
+func mapDeviceType(category string) devices.DeviceType {
+	switch category {
+	case "dj", "xdd", "fwd", "dc", "dd", "gyd", "fsd", "tyndj", "tgq":
+		return devices.DeviceTypeLight
+	case "cz", "pc":
+		return devices.DeviceTypeSocket
+	case "kg", "cjkg", "ckqdkg", "clkg", "tgkg":
+		return devices.DeviceTypeSwitch
+	default:
+		return devices.DeviceTypeOther
 	}
 }
