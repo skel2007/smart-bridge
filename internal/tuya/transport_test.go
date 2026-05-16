@@ -18,7 +18,7 @@ func TestDoSignsRequestHeaders(t *testing.T) {
 	query := url.Values{}
 	query.Set("grant_type", "1")
 
-	var result tokenResult
+	var result tuyaTokenResult
 	err := client.do(context.Background(), http.MethodGet, tokenPath, query, nil, "", &result)
 
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestDoSetsAccessTokenHeader(t *testing.T) {
 }
 
 func TestDecodeResponseResult(t *testing.T) {
-	var result tokenResult
+	var result tuyaTokenResult
 
 	err := decodeResponse(http.StatusOK, []byte(`{"success":true,"result":{"access_token":"access-token"}}`), &result)
 

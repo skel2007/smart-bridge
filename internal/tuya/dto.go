@@ -1,8 +1,12 @@
 package tuya
 
-import "github.com/skel2007/smart-bridge/internal/devices"
+import (
+	"encoding/json"
 
-type tokenResult struct {
+	"github.com/skel2007/smart-bridge/internal/devices"
+)
+
+type tuyaTokenResult struct {
 	AccessToken string `json:"access_token"`
 }
 
@@ -12,6 +16,29 @@ type tuyaDevice struct {
 	CustomName string `json:"customName"`
 	Category   string `json:"category"`
 	IsOnline   bool   `json:"isOnline"`
+}
+
+type tuyaDeviceSpecifications struct {
+	Category  string             `json:"category"`
+	Functions []tuyaFunctionSpec `json:"functions"`
+	Status    []tuyaStatusSpec   `json:"status"`
+}
+
+type tuyaFunctionSpec struct {
+	Code   string          `json:"code"`
+	Type   string          `json:"type"`
+	Values json.RawMessage `json:"values"`
+}
+
+type tuyaStatusSpec struct {
+	Code   string          `json:"code"`
+	Type   string          `json:"type"`
+	Values json.RawMessage `json:"values"`
+}
+
+type tuyaDeviceStatus struct {
+	Code  string          `json:"code"`
+	Value json.RawMessage `json:"value"`
 }
 
 func mapDevice(device tuyaDevice) devices.Device {

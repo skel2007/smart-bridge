@@ -15,9 +15,11 @@ import (
 )
 
 const (
-	tokenPath      = "/v1.0/token"
-	projectDevices = "/v2.0/cloud/thing/device"
-	listPageSize   = 20
+	tokenPath                = "/v1.0/token"
+	projectDevices           = "/v2.0/cloud/thing/device"
+	deviceSpecificationsPath = "/v1.0/devices/%s/specifications"
+	deviceStatusPath         = "/v1.0/devices/%s/status"
+	listPageSize             = 20
 )
 
 type Credentials struct {
@@ -126,7 +128,7 @@ func (client *Client) ensureAccessToken(ctx context.Context) error {
 	query := url.Values{}
 	query.Set("grant_type", "1")
 
-	var result tokenResult
+	var result tuyaTokenResult
 	if err := client.do(ctx, http.MethodGet, tokenPath, query, nil, "", &result); err != nil {
 		return err
 	}
@@ -137,6 +139,36 @@ func (client *Client) ensureAccessToken(ctx context.Context) error {
 	client.accessToken = result.AccessToken
 
 	return nil
+}
+
+func (client *Client) getDeviceSpecifications(ctx context.Context, deviceID string) (tuyaDeviceSpecifications, error) {
+	if err := client.ensureAccessToken(ctx); err != nil {
+		return tuyaDeviceSpecifications{}, err
+	}
+
+	path := fmt.Sprintf(deviceSpecificationsPath, url.PathEscape(deviceID))
+
+	var result tuyaDeviceSpecifications
+	if err := client.do(ctx, http.MethodGet, path, nil, nil, client.accessToken, &result); err != nil {
+		return tuyaDeviceSpecifications{}, err
+	}
+
+	return result, nil
+}
+
+func (client *Client) getDeviceStatus(ctx context.Context, deviceID string) ([]tuyaDeviceStatus, error) {
+	if err := client.ensureAccessToken(ctx); err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf(deviceStatusPath, url.PathEscape(deviceID))
+
+	var result []tuyaDeviceStatus
+	if err := client.do(ctx, http.MethodGet, path, nil, nil, client.accessToken, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func randomNonce() (string, error) {
