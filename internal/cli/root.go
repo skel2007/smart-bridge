@@ -1,14 +1,9 @@
 package cli
 
-import (
-	"github.com/spf13/cobra"
-
-	"github.com/skel2007/smart-bridge/internal/config"
-)
+import "github.com/spf13/cobra"
 
 type options struct {
 	configPath string
-	config     config.Config
 }
 
 func NewRootCommand() *cobra.Command {
@@ -25,15 +20,4 @@ func NewRootCommand() *cobra.Command {
 	cmd.AddCommand(newDevicesCommand(opts))
 
 	return cmd
-}
-
-func (opts *options) loadConfig() error {
-	cfg, err := config.Load(opts.configPath)
-	if err != nil {
-		return err
-	}
-
-	opts.config = cfg
-
-	return nil
 }

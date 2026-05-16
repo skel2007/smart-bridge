@@ -1,9 +1,15 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+
+	"github.com/skel2007/smart-bridge/internal/config"
+	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya"
 )
 
 type devicesListOptions struct {
@@ -17,6 +23,7 @@ func newDevicesCommand(rootOpts *options) *cobra.Command {
 	}
 
 	cmd.AddCommand(newDevicesListCommand(rootOpts))
+
 	return cmd
 }
 
@@ -31,11 +38,50 @@ func newDevicesListCommand(rootOpts *options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&opts.outputJSON, "json", false, "print raw JSON response")
+	cmd.Flags().BoolVar(&opts.outputJSON, "json", false, "print devices as JSON")
+
 	return cmd
 }
 
 func runDevicesList(cmd *cobra.Command, rootOpts *options, opts *devicesListOptions) error {
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "devices list is not implemented yet (config=%s, json=%t)\n", rootOpts.configPath, opts.outputJSON)
+	cfg, err := config.Load(rootOpts.configPath)
+	if err != nil {
+		return err
+	}
+
+	client := tuya.NewClient(tuya.Credentials{
+		Endpoint:     cfg.Tuya.Endpoint,
+		ClientID:     cfg.Tuya.ClientID,
+		ClientSecret: cfg.Tuya.ClientSecret,
+	})
+
+	deviceList, err := client.ListDevices(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	if opts.outputJSON {
+		encoder := json.NewEncoder(cmd.OutOrStdout())
+		encoder.SetIndent("", "  ")
+
+		return encoder.Encode(deviceList)
+	}
+
+	printDevicesTable(cmd, deviceList)
+
 	return nil
+}
+
+func printDevicesTable(cmd *cobra.Command, deviceList []devices.Device) {
+	if len(deviceList) == 0 {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No devices found")
+		return
+	}
+
+	writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(writer, "ID\tNAME\tTYPE\tONLINE")
+	for _, device := range deviceList {
+		_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%t\n", device.ID, device.Name, device.Type, device.Online)
+	}
+	_ = writer.Flush()
 }
