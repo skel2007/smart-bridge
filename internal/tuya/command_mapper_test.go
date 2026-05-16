@@ -1,0 +1,183 @@
+package tuya
+
+import (
+	"testing"
+
+	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMapCapabilityCommand(t *testing.T) {
+	tests := []struct {
+		name          string
+		command       devices.CapabilityCommand
+		specification tuyaDeviceSpecifications
+		want          tuyaCommand
+	}{
+		{
+			name:    "power",
+			command: devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{Code: "switch_led"},
+			}},
+			want: tuyaCommand{Code: "switch_led", Value: true},
+		},
+		{
+			name:    "brightness",
+			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{
+					Code:   "bright_value_v2",
+					Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`),
+				},
+			}},
+			want: tuyaCommand{Code: "bright_value_v2", Value: 505},
+		},
+		{
+			name:    "color temperature level",
+			command: devices.NewRangeCommand(devices.CapabilityInstanceColorTemperatureLevel, 75),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{
+					Code:   "temp_value_v2",
+					Values: []byte(`"{\"min\":0,\"max\":1000,\"scale\":0,\"step\":1}"`),
+				},
+			}},
+			want: tuyaCommand{Code: "temp_value_v2", Value: 750},
+		},
+		{
+			name: "color",
+			command: devices.NewColorCommand(devices.CapabilityInstanceColor, devices.HSVColor{
+				Hue:        120,
+				Saturation: 80,
+				Value:      90,
+			}),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{Code: "colour_data_v2"},
+			}},
+			want: tuyaCommand{
+				Code: "colour_data_v2",
+				Value: tuyaHSVValue{
+					Hue:        120,
+					Saturation: 800,
+					Value:      900,
+				},
+			},
+		},
+		{
+			name: "legacy color",
+			command: devices.NewColorCommand(devices.CapabilityInstanceColor, devices.HSVColor{
+				Hue:        37,
+				Saturation: 100,
+				Value:      50,
+			}),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{Code: "colour_data"},
+			}},
+			want: tuyaCommand{
+				Code: "colour_data",
+				Value: tuyaHSVValue{
+					Hue:        37,
+					Saturation: 255,
+					Value:      128,
+				},
+			},
+		},
+		{
+			name:    "mode",
+			command: devices.NewModeCommand(devices.CapabilityInstanceWorkMode, "white"),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{
+					Code:   "work_mode",
+					Values: []byte(`{"range":["white","colour"]}`),
+				},
+			}},
+			want: tuyaCommand{Code: "work_mode", Value: "white"},
+		},
+		{
+			name:    "uses first matching function",
+			command: devices.NewOnOffCommand(devices.CapabilityInstancePower, false),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{Code: "switch"},
+				{Code: "switch_led"},
+			}},
+			want: tuyaCommand{Code: "switch", Value: false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := mapCapabilityCommand(tt.command, tt.specification)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestMapCapabilityCommandErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		command       devices.CapabilityCommand
+		specification tuyaDeviceSpecifications
+		wantErr       string
+	}{
+		{
+			name:          "invalid domain command",
+			command:       devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 101),
+			specification: tuyaDeviceSpecifications{},
+			wantErr:       "range command state must be between 0 and 100: 101",
+		},
+		{
+			name:          "missing tuya function",
+			command:       devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
+			specification: tuyaDeviceSpecifications{},
+			wantErr:       "tuya function not found for capability instance: power",
+		},
+		{
+			name:    "missing range values",
+			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{Code: "bright_value_v2"},
+			}},
+			wantErr: "tuya range values are missing or invalid",
+		},
+		{
+			name:    "invalid range values",
+			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{
+					Code:   "bright_value_v2",
+					Values: []byte(`{"min":1000,"max":10,"scale":0,"step":1}`),
+				},
+			}},
+			wantErr: "tuya range values are missing or invalid",
+		},
+		{
+			name:    "missing mode values",
+			command: devices.NewModeCommand(devices.CapabilityInstanceWorkMode, "white"),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{Code: "work_mode"},
+			}},
+			wantErr: "tuya mode values are missing or invalid",
+		},
+		{
+			name:    "unsupported mode",
+			command: devices.NewModeCommand(devices.CapabilityInstanceWorkMode, "scene"),
+			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+				{
+					Code:   "work_mode",
+					Values: []byte(`{"range":["white","colour"]}`),
+				},
+			}},
+			wantErr: "tuya mode value is not supported: scene",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := mapCapabilityCommand(tt.command, tt.specification)
+
+			require.EqualError(t, err, tt.wantErr)
+		})
+	}
+}

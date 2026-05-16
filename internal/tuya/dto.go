@@ -38,3 +38,8 @@ type tuyaDeviceStatus struct {
 	Code  string          `json:"code"`
 	Value json.RawMessage `json:"value"`
 }
+
+type tuyaCommand struct {
+	Code  string `json:"code"`
+	Value any    `json:"value"`
+}
