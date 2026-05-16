@@ -1,6 +1,7 @@
 package tuya
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"strings"
@@ -13,11 +14,29 @@ const (
 	devicesURI              = "/v2.0/cloud/thing/device?page_size=20"
 	deviceSpecificationsURI = "/v1.0/devices/device-id/specifications"
 	deviceStatusURI         = "/v1.0/devices/device-id/status"
+	deviceCommandsURI       = "/v1.0/devices/device-id/commands"
 )
 
 type testResponse func() *http.Response
 
-func newTestClient(t *testing.T, routes map[string]testResponse) (*Client, *testTuyaAPI) {
+type testRoute struct {
+	method string
+	uri    string
+}
+
+func route(method string, uri string) testRoute {
+	return testRoute{method: method, uri: uri}
+}
+
+func getRoute(uri string) testRoute {
+	return route(http.MethodGet, uri)
+}
+
+func postRoute(uri string) testRoute {
+	return route(http.MethodPost, uri)
+}
+
+func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *testTuyaAPI) {
 	t.Helper()
 
 	api := &testTuyaAPI{t: t, routes: routes}
@@ -41,16 +60,25 @@ func newTestClient(t *testing.T, routes map[string]testResponse) (*Client, *test
 
 type testTuyaAPI struct {
 	t        *testing.T
-	routes   map[string]testResponse
+	routes   map[testRoute]testResponse
 	requests []*http.Request
+	bodies   []string
 }
 
 func (api *testTuyaAPI) RoundTrip(req *http.Request) (*http.Response, error) {
-	api.requests = append(api.requests, req)
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		api.t.Fatalf("read request body: %v", err)
+	}
+	req.Body = io.NopCloser(bytes.NewReader(body))
 
-	resp, ok := api.routes[req.URL.RequestURI()]
+	api.requests = append(api.requests, req)
+	api.bodies = append(api.bodies, string(body))
+
+	requestRoute := route(req.Method, req.URL.RequestURI())
+	resp, ok := api.routes[requestRoute]
 	if !ok {
-		api.t.Fatalf("unexpected request URI: %s", req.URL.RequestURI())
+		api.t.Fatalf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 	}
 
 	return resp(), nil

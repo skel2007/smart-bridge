@@ -43,3 +43,7 @@ type tuyaCommand struct {
 	Code  string `json:"code"`
 	Value any    `json:"value"`
 }
+
+type tuyaCommandsRequest struct {
+	Commands []tuyaCommand `json:"commands"`
+}

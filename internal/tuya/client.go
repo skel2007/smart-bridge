@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ const (
 	projectDevices           = "/v2.0/cloud/thing/device"
 	deviceSpecificationsPath = "/v1.0/devices/%s/specifications"
 	deviceStatusPath         = "/v1.0/devices/%s/status"
+	deviceCommandsPath       = "/v1.0/devices/%s/commands"
 	listPageSize             = 20
 )
 
@@ -132,6 +134,27 @@ func (client *Client) ListCapabilities(ctx context.Context, deviceID string) ([]
 	}
 
 	return mapCapabilities(specifications, status), nil
+}
+
+func (client *Client) SendCommand(ctx context.Context, deviceID string, command devices.CapabilityCommand) error {
+	specifications, err := client.getDeviceSpecifications(ctx, deviceID)
+	if err != nil {
+		return err
+	}
+
+	mappedCommand, err := mapCapabilityCommand(command, specifications)
+	if err != nil {
+		return err
+	}
+
+	body, err := json.Marshal(tuyaCommandsRequest{Commands: []tuyaCommand{mappedCommand}})
+	if err != nil {
+		return fmt.Errorf("encode tuya commands request: %w", err)
+	}
+
+	path := fmt.Sprintf(deviceCommandsPath, url.PathEscape(deviceID))
+
+	return client.do(ctx, http.MethodPost, path, nil, body, client.accessToken, nil)
 }
 
 func (client *Client) ensureAccessToken(ctx context.Context) error {

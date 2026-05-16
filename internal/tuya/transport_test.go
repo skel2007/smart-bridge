@@ -11,8 +11,8 @@ import (
 )
 
 func TestDoSignsRequestHeaders(t *testing.T) {
-	client, api := newTestClient(t, map[string]testResponse{
-		tokenURI: tuyaResult(`{"access_token":"access-token"}`),
+	client, api := newTestClient(t, map[testRoute]testResponse{
+		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
 	})
 
 	query := url.Values{}
@@ -35,8 +35,8 @@ func TestDoSignsRequestHeaders(t *testing.T) {
 }
 
 func TestDoSetsAccessTokenHeader(t *testing.T) {
-	client, api := newTestClient(t, map[string]testResponse{
-		devicesURI: tuyaResult(`[]`),
+	client, api := newTestClient(t, map[testRoute]testResponse{
+		getRoute(devicesURI): tuyaResult(`[]`),
 	})
 
 	query := url.Values{}
