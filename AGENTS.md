@@ -4,7 +4,7 @@ Repo-specific instructions for agents working on `smart-bridge`.
 
 ## Project Shape
 
-- Go module: `smart-bridge`.
+- Go module: `github.com/skel2007/smart-bridge`.
 - CLI binary: `cmd/smart-bridge`.
 - Keep `cmd/smart-bridge/main.go` as a thin entrypoint.
 - Keep `internal/cli` as the CLI adapter layer.
