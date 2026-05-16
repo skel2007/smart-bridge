@@ -8,10 +8,6 @@ This context describes the smart home concepts used by smart-bridge.
 A vendor-neutral representation of a smart-home device.
 _Avoid_: Tuya Device, smart device
 
-**Device Details**:
-A vendor-neutral detailed representation of a **Device** that includes loaded **Capabilities**.
-_Avoid_: Device with maybe-loaded capabilities
-
 **Device Type**:
 A vendor-neutral smart-home device kind such as `light`, `socket`, or `switch`.
 _Avoid_: Tuya category
@@ -35,7 +31,8 @@ _Avoid_: Tuya status, Yandex API property
 ## Relationships
 
 - A **Device** is not tied to Tuya-specific metadata or Yandex-specific API fields.
-- A **Device** is a summary; **Device Details** includes information that requires additional upstream reads.
+- A **Device** is a summary loaded from upstream device listing APIs.
+- **Capabilities** and **Properties** are loaded separately for a known **Device** when additional upstream reads are needed.
 - A **Device Type** is mapped from upstream platform categories and later mapped to downstream platform device types.
 - A **Capability** is mapped from upstream platform functions and later mapped to downstream platform capabilities.
 - A **Capability** has a **Capability Type** and a **Capability Instance**.

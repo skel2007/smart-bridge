@@ -1,10 +1,5 @@
 package devices
 
-type DeviceDetails struct {
-	Device
-	Capabilities []Capability `json:"capabilities"`
-}
-
 type Capability struct {
 	Type     CapabilityType     `json:"type"`
 	Instance CapabilityInstance `json:"instance"`
