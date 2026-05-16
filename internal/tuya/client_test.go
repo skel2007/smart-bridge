@@ -74,6 +74,78 @@ func TestListDevicesDoesNotExposeSecretsInErrors(t *testing.T) {
 	require.NotContains(t, err.Error(), "access-secret")
 }
 
+func TestListCapabilities(t *testing.T) {
+	client, api := newTestClient(t, map[string]testResponse{
+		tokenURI: tuyaResult(`{"access_token":"access-token"}`),
+		deviceSpecificationsURI: tuyaResult(`{
+			"functions": [
+				{"code":"switch_led","type":"Boolean","values":"{}"},
+				{"code":"bright_value_v2","type":"Integer","values":"{\"min\":10,\"max\":1000,\"scale\":1,\"step\":5}"}
+			]
+		}`),
+		deviceStatusURI: tuyaResult(`[
+			{"code":"switch_led","value":true},
+			{"code":"bright_value_v2","value":750}
+		]`),
+	})
+
+	capabilities, err := client.ListCapabilities(context.Background(), "device-id")
+
+	require.NoError(t, err)
+	require.Equal(t, []devices.Capability{
+		devices.NewOnOffCapability(devices.CapabilityInstancePower, true),
+		devices.NewRangeCapability(
+			devices.CapabilityInstanceBrightness,
+			75,
+			devices.RangeParameters{Min: 1, Max: 100, Precision: 0.5},
+		),
+	}, capabilities)
+	require.Equal(t, []string{tokenURI, deviceSpecificationsURI, deviceStatusURI}, api.requestURIs())
+}
+
+func TestListCapabilitiesEscapesDeviceID(t *testing.T) {
+	specificationsURI := "/v1.0/devices/device%2Fid%20with%20space/specifications"
+	statusURI := "/v1.0/devices/device%2Fid%20with%20space/status"
+	client, api := newTestClient(t, map[string]testResponse{
+		tokenURI:          tuyaResult(`{"access_token":"access-token"}`),
+		specificationsURI: tuyaResult(`{"functions":[]}`),
+		statusURI:         tuyaResult(`[]`),
+	})
+
+	_, err := client.ListCapabilities(context.Background(), "device/id with space")
+
+	require.NoError(t, err)
+	require.Equal(t, []string{tokenURI, specificationsURI, statusURI}, api.requestURIs())
+}
+
+func TestListCapabilitiesReturnsSpecificationsError(t *testing.T) {
+	client, _ := newTestClient(t, map[string]testResponse{
+		tokenURI:                tuyaResult(`{"access_token":"access-token"}`),
+		deviceSpecificationsURI: tuyaError(http.StatusOK, "1106", "permission denied"),
+	})
+
+	_, err := client.ListCapabilities(context.Background(), "device-id")
+
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	require.Equal(t, "1106", apiErr.Code)
+}
+
+func TestListCapabilitiesReturnsStatusError(t *testing.T) {
+	client, api := newTestClient(t, map[string]testResponse{
+		tokenURI:                tuyaResult(`{"access_token":"access-token"}`),
+		deviceSpecificationsURI: tuyaResult(`{"functions":[]}`),
+		deviceStatusURI:         tuyaError(http.StatusOK, "1107", "status denied"),
+	})
+
+	_, err := client.ListCapabilities(context.Background(), "device-id")
+
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	require.Equal(t, "1107", apiErr.Code)
+	require.Equal(t, []string{tokenURI, deviceSpecificationsURI, deviceStatusURI}, api.requestURIs())
+}
+
 func tuyaDevicesJSON(prefix string, start, count int) string {
 	items := make([]string, 0, count)
 	for i := start; i < start+count; i++ {

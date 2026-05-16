@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	tokenURI   = "/v1.0/token?grant_type=1"
-	devicesURI = "/v2.0/cloud/thing/device?page_size=20"
+	tokenURI                = "/v1.0/token?grant_type=1"
+	devicesURI              = "/v2.0/cloud/thing/device?page_size=20"
+	deviceSpecificationsURI = "/v1.0/devices/device-id/specifications"
+	deviceStatusURI         = "/v1.0/devices/device-id/status"
 )
 
 type testResponse func() *http.Response

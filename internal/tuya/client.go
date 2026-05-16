@@ -120,6 +120,20 @@ func (client *Client) ListDevices(ctx context.Context) ([]devices.Device, error)
 	}
 }
 
+func (client *Client) ListCapabilities(ctx context.Context, deviceID string) ([]devices.Capability, error) {
+	specifications, err := client.getDeviceSpecifications(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := client.getDeviceStatus(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapCapabilities(specifications, status), nil
+}
+
 func (client *Client) ensureAccessToken(ctx context.Context) error {
 	if client.accessToken != "" {
 		return nil
