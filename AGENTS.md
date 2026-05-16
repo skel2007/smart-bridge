@@ -36,5 +36,6 @@ Rules:
 - Split work into reviewable commits of reasonable size; avoid mixing unrelated decisions in one commit.
 - After each code-edit iteration, review the written code with a fresh eye and run the relevant checks before proposing a commit.
 - Proactively ask whether to commit only after the latest review pass is complete and the diff is still a reasonable reviewable unit.
+- After committing a reviewable step, summarize the commit briefly, propose the next small step, and wait for explicit approval before starting it.
 - Run focused tests after behavior changes; use `go test ./...` when the change is broad or cheap.
 - Do not commit local configuration files or secrets.
