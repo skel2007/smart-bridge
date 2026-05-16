@@ -22,6 +22,12 @@ Build the CLI binary:
 go build -o bin/smart-bridge ./cmd/smart-bridge
 ```
 
+Create a local config from the example:
+
+```sh
+cp config.example.yaml config.yaml
+```
+
 ## License
 
 MIT

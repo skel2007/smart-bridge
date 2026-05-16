@@ -2,10 +2,13 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
+
+	"smart-bridge/internal/config"
 )
 
 type options struct {
 	configPath string
+	config     config.Config
 }
 
 func NewRootCommand() *cobra.Command {
@@ -18,7 +21,19 @@ func NewRootCommand() *cobra.Command {
 		SilenceErrors: false,
 	}
 
-	cmd.PersistentFlags().StringVar(&opts.configPath, "config", "", "path to config file")
+	cmd.PersistentFlags().StringVar(&opts.configPath, "config", "config.yaml", "path to config file")
 	cmd.AddCommand(newDevicesCommand(opts))
+
 	return cmd
+}
+
+func (opts *options) loadConfig() error {
+	cfg, err := config.Load(opts.configPath)
+	if err != nil {
+		return err
+	}
+
+	opts.config = cfg
+
+	return nil
 }
