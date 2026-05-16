@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"smart-bridge/internal/cli"
+	"github.com/skel2007/smart-bridge/internal/cli"
 )
 
 func main() {

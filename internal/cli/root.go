@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"smart-bridge/internal/config"
+	"github.com/skel2007/smart-bridge/internal/config"
 )
 
 type options struct {

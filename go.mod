@@ -1,4 +1,4 @@
-module smart-bridge
+module github.com/skel2007/smart-bridge
 
 go 1.26
 
