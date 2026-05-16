@@ -80,12 +80,12 @@ func TestListCapabilities(t *testing.T) {
 		deviceSpecificationsURI: tuyaResult(`{
 			"functions": [
 				{"code":"switch_led","type":"Boolean","values":"{}"},
-				{"code":"bright_value_v2","type":"Integer","values":"{\"min\":10,\"max\":1000,\"scale\":1,\"step\":5}"}
+				{"code":"bright_value_v2","type":"Integer","values":"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"}
 			]
 		}`),
 		deviceStatusURI: tuyaResult(`[
 			{"code":"switch_led","value":true},
-			{"code":"bright_value_v2","value":750}
+			{"code":"bright_value_v2","value":1000}
 		]`),
 	})
 
@@ -96,8 +96,8 @@ func TestListCapabilities(t *testing.T) {
 		devices.NewOnOffCapability(devices.CapabilityInstancePower, true),
 		devices.NewRangeCapability(
 			devices.CapabilityInstanceBrightness,
-			75,
-			devices.RangeParameters{Min: 1, Max: 100, Precision: 0.5},
+			100,
+			devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
 		),
 	}, capabilities)
 	require.Equal(t, []string{tokenURI, deviceSpecificationsURI, deviceStatusURI}, api.requestURIs())

@@ -46,13 +46,13 @@ func TestMapCapability(t *testing.T) {
 			name: "brightness",
 			function: tuyaFunctionSpec{
 				Code:   "bright_value_v2",
-				Values: []byte(`"{\"min\":10,\"max\":1000,\"scale\":1,\"step\":5}"`),
+				Values: []byte(`"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"`),
 			},
-			state: []byte(`750`),
+			state: []byte(`1000`),
 			want: devices.NewRangeCapability(
 				devices.CapabilityInstanceBrightness,
-				75,
-				devices.RangeParameters{Min: 1, Max: 100, Precision: 0.5},
+				100,
+				devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
 			),
 			wantOK: true,
 		},
@@ -60,12 +60,12 @@ func TestMapCapability(t *testing.T) {
 			name: "color temperature level",
 			function: tuyaFunctionSpec{
 				Code:   "temp_value_v2",
-				Values: []byte(`"{\"min\":0,\"max\":1000,\"scale\":1,\"step\":10}"`),
+				Values: []byte(`"{\"min\":0,\"max\":1000,\"scale\":0,\"step\":1}"`),
 			},
-			state: []byte(`450`),
+			state: []byte(`500`),
 			want: devices.NewRangeCapability(
 				devices.CapabilityInstanceColorTemperatureLevel,
-				45,
+				50,
 				devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
 			),
 			wantOK: true,

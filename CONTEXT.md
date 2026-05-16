@@ -36,6 +36,7 @@ _Avoid_: Tuya status, Yandex API property
 - A **Device Type** is mapped from upstream platform categories and later mapped to downstream platform device types.
 - A **Capability** is mapped from upstream platform functions and later mapped to downstream platform capabilities.
 - A **Capability** has a **Capability Type** and a **Capability Instance**.
+- Known **Range Capabilities** use vendor-neutral domain scales, not upstream platform scales. For example, `brightness` and `color_temperature_level` are represented as `0..100`.
 - Unknown upstream functions are not **Capabilities** until smart-bridge understands their meaning.
 - A **Property** is mapped from upstream platform statuses and later mapped to downstream platform properties.
 - A value that can be changed by a command is a **Capability** state, not a **Property**.

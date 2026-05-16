@@ -2,7 +2,6 @@ package tuya
 
 import (
 	"encoding/json"
-	"math"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
@@ -60,9 +59,9 @@ func mapCapability(function tuyaFunctionSpec, state json.RawMessage) (devices.Ca
 	case "switch", "switch_led":
 		return mapOnOffCapability(state), true
 	case "bright_value", "bright_value_v2":
-		return mapRangeCapability(devices.CapabilityInstanceBrightness, function.Values, state), true
+		return mapPercentRangeCapability(devices.CapabilityInstanceBrightness, function.Values, state), true
 	case "temp_value", "temp_value_v2":
-		return mapRangeCapability(devices.CapabilityInstanceColorTemperatureLevel, function.Values, state), true
+		return mapPercentRangeCapability(devices.CapabilityInstanceColorTemperatureLevel, function.Values, state), true
 	case "colour_data":
 		return mapColorCapability(state, 255), true
 	case "colour_data_v2":
@@ -83,19 +82,19 @@ func mapOnOffCapability(state json.RawMessage) devices.Capability {
 	return devices.NewOnOffCapabilityWithoutState(devices.CapabilityInstancePower)
 }
 
-func mapRangeCapability(instance devices.CapabilityInstance, values json.RawMessage, state json.RawMessage) devices.Capability {
+func mapPercentRangeCapability(instance devices.CapabilityInstance, values json.RawMessage, state json.RawMessage) devices.Capability {
 	var tuyaValues tuyaIntegerValues
 	decodeTuyaValues(values, &tuyaValues)
 
 	parameters := devices.RangeParameters{
-		Min:       scaleTuyaNumber(tuyaValues.Min, tuyaValues.Scale),
-		Max:       scaleTuyaNumber(tuyaValues.Max, tuyaValues.Scale),
-		Precision: scaleTuyaNumber(tuyaValues.Step, tuyaValues.Scale),
+		Min:       0,
+		Max:       100,
+		Precision: 1,
 	}
 
 	var value float64
 	if decodeRawJSON(state, &value) {
-		return devices.NewRangeCapability(instance, scaleTuyaNumber(value, tuyaValues.Scale), parameters)
+		return devices.NewRangeCapability(instance, scaleTuyaRangePercent(value, tuyaValues.Min, tuyaValues.Max), parameters)
 	}
 
 	return devices.NewRangeCapabilityWithoutState(instance, parameters)
@@ -149,12 +148,12 @@ func decodeRawJSON(raw json.RawMessage, out any) bool {
 	return json.Unmarshal(raw, out) == nil
 }
 
-func scaleTuyaNumber(value float64, scale float64) float64 {
-	if scale <= 0 {
+func scaleTuyaRangePercent(value float64, minValue float64, maxValue float64) float64 {
+	if maxValue <= minValue {
 		return value
 	}
 
-	return value / math.Pow(10, scale)
+	return (value - minValue) / (maxValue - minValue) * 100
 }
 
 func scaleTuyaColorPercent(value float64, maxValue float64) float64 {
