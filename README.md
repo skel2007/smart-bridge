@@ -43,11 +43,25 @@ Print devices as JSON:
 bin/smart-bridge devices list --json
 ```
 
+List capabilities for a device:
+
+```sh
+bin/smart-bridge devices capabilities <device-id>
+```
+
+Print capabilities as JSON:
+
+```sh
+bin/smart-bridge devices capabilities <device-id> --json
+```
+
 Use a custom config path:
 
 ```sh
 bin/smart-bridge --config path/to/config.yaml devices list
 ```
+
+Known range capabilities use vendor-neutral `0..100` values in output. For example, Tuya brightness and color temperature level ranges are normalized before printing or JSON encoding.
 
 ## Development
 
