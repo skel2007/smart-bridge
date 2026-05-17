@@ -94,13 +94,19 @@ func TestMapCapabilityCommand(t *testing.T) {
 			want: tuyaCommand{Code: "work_mode", Value: "white"},
 		},
 		{
-			name:    "uses first matching function",
-			command: devices.NewOnOffCommand(devices.CapabilityInstancePower, false),
+			name:    "prefers v2 range function",
+			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
 			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
-				{Code: "switch"},
-				{Code: "switch_led"},
+				{
+					Code:   "bright_value",
+					Values: []byte(`{"min":0,"max":255,"scale":0,"step":1}`),
+				},
+				{
+					Code:   "bright_value_v2",
+					Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`),
+				},
 			}},
-			want: tuyaCommand{Code: "switch", Value: false},
+			want: tuyaCommand{Code: "bright_value_v2", Value: 505},
 		},
 	}
 

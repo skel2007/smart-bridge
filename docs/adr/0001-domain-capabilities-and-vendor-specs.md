@@ -30,6 +30,8 @@ Upstream adapters are responsible for both read and write conversion:
 - on read, map upstream specifications and status into normalized domain capabilities;
 - on write, use upstream specifications to convert normalized domain commands back into platform-specific commands.
 
+When an upstream platform exposes multiple functions for the same domain capability, the adapter chooses one preferred function by an explicit adapter-local priority order. For Tuya, newer `*_v2` functions are preferred over legacy functions when both are present.
+
 Adapters may cache upstream specifications. The cache belongs in the adapter or application service layer, not in the domain capability model.
 
 ## Consequences

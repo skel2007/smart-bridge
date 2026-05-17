@@ -40,15 +40,19 @@ func mapCapabilities(specifications tuyaDeviceSpecifications, status []tuyaDevic
 		statusByCode[item.Code] = item.Value
 	}
 
-	capabilities := make([]devices.Capability, 0, len(specifications.Functions))
-	seen := make(map[devices.CapabilityInstance]bool)
-	for _, function := range specifications.Functions {
-		capability, ok := mapCapability(function, statusByCode[function.Code])
-		if !ok || seen[capability.Instance] {
+	functionsByInstance := selectFunctionsByInstance(specifications.Functions)
+	capabilities := make([]devices.Capability, 0, len(functionsByInstance))
+	for _, mapping := range functionMappings {
+		function, ok := functionsByInstance[mapping.instance]
+		if !ok {
 			continue
 		}
 
-		seen[capability.Instance] = true
+		capability, ok := mapCapability(function, statusByCode[function.Code])
+		if !ok {
+			continue
+		}
+
 		capabilities = append(capabilities, capability)
 	}
 

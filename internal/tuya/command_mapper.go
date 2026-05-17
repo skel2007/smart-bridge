@@ -29,30 +29,13 @@ func mapCapabilityCommand(command devices.CapabilityCommand, specifications tuya
 }
 
 func findCommandFunction(instance devices.CapabilityInstance, functions []tuyaFunctionSpec) (tuyaFunctionSpec, bool) {
-	for _, function := range functions {
-		if functionMatchesInstance(function.Code, instance) {
-			return function, true
-		}
+	functionsByInstance := selectFunctionsByInstance(functions)
+	function, ok := functionsByInstance[instance]
+	if !ok {
+		return tuyaFunctionSpec{}, false
 	}
 
-	return tuyaFunctionSpec{}, false
-}
-
-func functionMatchesInstance(code string, instance devices.CapabilityInstance) bool {
-	switch instance {
-	case devices.CapabilityInstancePower:
-		return code == "switch" || code == "switch_led"
-	case devices.CapabilityInstanceBrightness:
-		return code == "bright_value" || code == "bright_value_v2"
-	case devices.CapabilityInstanceColorTemperatureLevel:
-		return code == "temp_value" || code == "temp_value_v2"
-	case devices.CapabilityInstanceColor:
-		return code == "colour_data" || code == "colour_data_v2"
-	case devices.CapabilityInstanceWorkMode:
-		return code == "work_mode"
-	default:
-		return false
-	}
+	return function, true
 }
 
 func mapCommandValue(command devices.CapabilityCommand, function tuyaFunctionSpec) (any, error) {

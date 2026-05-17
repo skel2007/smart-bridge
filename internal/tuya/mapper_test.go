@@ -157,3 +157,28 @@ func TestMapCapability(t *testing.T) {
 		})
 	}
 }
+
+func TestMapCapabilitiesUsesPreferredFunctions(t *testing.T) {
+	specifications := tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+		{
+			Code:   "bright_value",
+			Values: []byte(`{"min":0,"max":255,"scale":0,"step":1}`),
+		},
+		{
+			Code:   "bright_value_v2",
+			Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`),
+		},
+	}}
+	status := []tuyaDeviceStatus{
+		{Code: "bright_value", Value: []byte(`255`)},
+		{Code: "bright_value_v2", Value: []byte(`505`)},
+	}
+
+	require.Equal(t, []devices.Capability{
+		devices.NewRangeCapability(
+			devices.CapabilityInstanceBrightness,
+			50,
+			devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
+		),
+	}, mapCapabilities(specifications, status))
+}
