@@ -8,7 +8,7 @@ Accepted.
 
 smart-bridge currently has one Tuya client that handles domain-level device operations, Tuya Cloud endpoints, authentication, request signing, response decoding, and Tuya-specific mapping.
 
-The CLI is the only application adapter today, but a future HTTP adapter is expected. smart-bridge may also support upstream platforms beyond Tuya. Those callers should not depend on Tuya-specific DTOs, signing, endpoints, or specification caching details.
+The CLI is the only application layer today, but a future Yandex Smart Home API layer is expected. smart-bridge may also support upstream platforms beyond Tuya. Those callers should not depend on Tuya-specific DTOs, signing, endpoints, or specification caching details.
 
 Tuya command mapping needs upstream specifications. For example, domain commands such as `power=on` and `brightness=50` must be converted to the correct Tuya function codes and vendor ranges before they can be sent. Re-reading those specifications for every command request is acceptable for the current short-lived CLI, but a future long-running service will likely need caching.
 
@@ -28,7 +28,7 @@ Keep `tuya.NewClient(credentials, options...)` as the construction entry point. 
 
 ## Consequences
 
-CLI and future HTTP adapters can depend on `devices.DeviceGateway` instead of `tuya.Client` when they need a vendor-neutral device source.
+CLI and the future Yandex Smart Home API layer can depend on `devices.DeviceGateway` instead of `tuya.Client` when they need a vendor-neutral device source.
 
 The domain model stays free of Tuya-specific metadata. Tuya specifications and any future cache remain inside the Tuya adapter, consistent with ADR 0001.
 

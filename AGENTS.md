@@ -21,7 +21,7 @@ cmd/smart-bridge -> internal/cli -> internal/config, internal/tuya, internal/dev
 Expected future HTTP app dependency direction:
 
 ```text
-cmd/smart-bridge-http -> internal/api -> internal/config, internal/tuya, internal/devices
+cmd/smart-bridge-http -> internal/yandex -> internal/config, internal/tuya, internal/devices
 ```
 
 Rules:
