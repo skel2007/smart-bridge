@@ -1,10 +1,10 @@
 package tuya
 
 import (
-	"bytes"
 	"io"
 	"net/http"
-	"strings"
+	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 )
@@ -17,7 +17,10 @@ const (
 	deviceCommandsURI       = "/v1.0/devices/device-id/commands"
 )
 
-type testResponse func() *http.Response
+type testResponse struct {
+	statusCode int
+	body       string
+}
 
 type testRoute struct {
 	method string
@@ -40,13 +43,16 @@ func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *t
 	t.Helper()
 
 	api := &testTuyaAPI{t: t, routes: routes}
+	api.server = httptest.NewServer(http.HandlerFunc(api.handle))
+	t.Cleanup(api.server.Close)
+
 	client := NewClient(
 		Credentials{
-			Endpoint:     "https://example.com",
+			Endpoint:     api.server.URL,
 			ClientID:     "client",
 			ClientSecret: "super-secret",
 		},
-		WithHTTPClient(&http.Client{Transport: api}),
+		WithHTTPClient(api.server.Client()),
 		WithNowFunc(func() time.Time {
 			return time.UnixMilli(1700000000000)
 		}),
@@ -60,31 +66,43 @@ func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *t
 
 type testTuyaAPI struct {
 	t        *testing.T
+	server   *httptest.Server
 	routes   map[testRoute]testResponse
+	mu       sync.Mutex
 	requests []*http.Request
 	bodies   []string
 }
 
-func (api *testTuyaAPI) RoundTrip(req *http.Request) (*http.Response, error) {
+func (api *testTuyaAPI) handle(w http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
-		api.t.Fatalf("read request body: %v", err)
+		api.t.Errorf("read request body: %v", err)
+		http.Error(w, "read request body", http.StatusInternalServerError)
+		return
 	}
-	req.Body = io.NopCloser(bytes.NewReader(body))
 
-	api.requests = append(api.requests, req)
+	api.mu.Lock()
+	api.requests = append(api.requests, req.Clone(req.Context()))
 	api.bodies = append(api.bodies, string(body))
+	api.mu.Unlock()
 
 	requestRoute := route(req.Method, req.URL.RequestURI())
 	resp, ok := api.routes[requestRoute]
 	if !ok {
-		api.t.Fatalf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		api.t.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		http.Error(w, "unexpected request", http.StatusInternalServerError)
+		return
 	}
 
-	return resp(), nil
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.statusCode)
+	_, _ = w.Write([]byte(resp.body))
 }
 
 func (api *testTuyaAPI) requestURIs() []string {
+	api.mu.Lock()
+	defer api.mu.Unlock()
+
 	uris := make([]string, 0, len(api.requests))
 	for _, req := range api.requests {
 		uris = append(uris, req.URL.RequestURI())
@@ -94,21 +112,16 @@ func (api *testTuyaAPI) requestURIs() []string {
 }
 
 func tuyaResult(result string) testResponse {
-	return func() *http.Response {
-		return jsonResponse(http.StatusOK, `{"success":true,"result":`+result+`}`)
-	}
+	return jsonResponse(http.StatusOK, `{"success":true,"result":`+result+`}`)
 }
 
 func tuyaError(statusCode int, code, message string) testResponse {
-	return func() *http.Response {
-		return jsonResponse(statusCode, `{"success":false,"code":"`+code+`","msg":"`+message+`"}`)
-	}
+	return jsonResponse(statusCode, `{"success":false,"code":"`+code+`","msg":"`+message+`"}`)
 }
 
-func jsonResponse(statusCode int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: statusCode,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(body)),
+func jsonResponse(statusCode int, body string) testResponse {
+	return testResponse{
+		statusCode: statusCode,
+		body:       body,
 	}
 }
