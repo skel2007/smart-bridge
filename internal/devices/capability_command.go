@@ -63,12 +63,12 @@ func (command CapabilityCommand) Validate() error {
 		return errors.New("capability command instance is required")
 	}
 
-	expected, ok := commandPayloadKindForInstance(command.Instance)
+	expected, ok := CapabilityTypeForInstance(command.Instance)
 	if !ok {
 		return fmt.Errorf("unknown capability command instance: %s", command.Instance)
 	}
 
-	actual, count := command.commandPayloadKind()
+	actual, count := command.capabilityType()
 	if count == 0 {
 		return errors.New("capability command payload is required")
 	}
@@ -80,63 +80,39 @@ func (command CapabilityCommand) Validate() error {
 	}
 
 	switch actual {
-	case commandPayloadKindRange:
+	case CapabilityTypeRange:
 		return validateRangeCommand(command.Range)
-	case commandPayloadKindColor:
+	case CapabilityTypeColor:
 		return validateColorCommand(command.Color)
-	case commandPayloadKindMode:
+	case CapabilityTypeMode:
 		return validateModeCommand(command.Mode)
 	default:
 		return nil
 	}
 }
 
-type commandPayloadKind string
-
-const (
-	commandPayloadKindOnOff commandPayloadKind = "on_off"
-	commandPayloadKindRange commandPayloadKind = "range"
-	commandPayloadKindColor commandPayloadKind = "color"
-	commandPayloadKindMode  commandPayloadKind = "mode"
-)
-
-func commandPayloadKindForInstance(instance CapabilityInstance) (commandPayloadKind, bool) {
-	switch instance {
-	case CapabilityInstancePower:
-		return commandPayloadKindOnOff, true
-	case CapabilityInstanceBrightness, CapabilityInstanceColorTemperatureLevel:
-		return commandPayloadKindRange, true
-	case CapabilityInstanceColor:
-		return commandPayloadKindColor, true
-	case CapabilityInstanceWorkMode:
-		return commandPayloadKindMode, true
-	default:
-		return "", false
-	}
-}
-
-func (command CapabilityCommand) commandPayloadKind() (commandPayloadKind, int) {
-	var kind commandPayloadKind
+func (command CapabilityCommand) capabilityType() (CapabilityType, int) {
+	var capabilityType CapabilityType
 	var count int
 
 	if command.OnOff != nil {
-		kind = commandPayloadKindOnOff
+		capabilityType = CapabilityTypeOnOff
 		count++
 	}
 	if command.Range != nil {
-		kind = commandPayloadKindRange
+		capabilityType = CapabilityTypeRange
 		count++
 	}
 	if command.Color != nil {
-		kind = commandPayloadKindColor
+		capabilityType = CapabilityTypeColor
 		count++
 	}
 	if command.Mode != nil {
-		kind = commandPayloadKindMode
+		capabilityType = CapabilityTypeMode
 		count++
 	}
 
-	return kind, count
+	return capabilityType, count
 }
 
 func validateRangeCommand(command *RangeCommand) error {

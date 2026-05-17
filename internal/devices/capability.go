@@ -29,6 +29,21 @@ const (
 	CapabilityInstanceWorkMode              CapabilityInstance = "work_mode"
 )
 
+func CapabilityTypeForInstance(instance CapabilityInstance) (CapabilityType, bool) {
+	switch instance {
+	case CapabilityInstancePower:
+		return CapabilityTypeOnOff, true
+	case CapabilityInstanceBrightness, CapabilityInstanceColorTemperatureLevel:
+		return CapabilityTypeRange, true
+	case CapabilityInstanceColor:
+		return CapabilityTypeColor, true
+	case CapabilityInstanceWorkMode:
+		return CapabilityTypeMode, true
+	default:
+		return "", false
+	}
+}
+
 type OnOffCapability struct {
 	State *bool `json:"state,omitempty"`
 }

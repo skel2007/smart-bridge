@@ -28,6 +28,7 @@ func newDevicesCommand(rootOpts *options) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&opts.outputJSON, "json", false, "print output as JSON")
 	cmd.AddCommand(newDevicesListCommand(rootOpts, opts))
 	cmd.AddCommand(newDevicesCapabilitiesCommand(rootOpts, opts))
+	cmd.AddCommand(newDevicesSetCommand(rootOpts, opts))
 
 	return cmd
 }

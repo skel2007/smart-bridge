@@ -55,6 +55,16 @@ Print capabilities as JSON:
 bin/smart-bridge devices capabilities <device-id> --json
 ```
 
+Set a device capability:
+
+```sh
+bin/smart-bridge devices set power <device-id> on
+bin/smart-bridge devices set brightness <device-id> 50
+bin/smart-bridge devices set color-temperature <device-id> 75
+bin/smart-bridge devices set color <device-id> --hue 120 --saturation 80 --value 90
+bin/smart-bridge devices set mode <device-id> white
+```
+
 Use a custom config path:
 
 ```sh
