@@ -1,8 +1,8 @@
 # smart-bridge
 
-`smart-bridge` is a Go command-line utility for inspecting smart home devices.
+`smart-bridge` is a Go command-line utility for inspecting and controlling smart home devices.
 
-Current scope is Tuya Cloud device discovery from a Smart Life/Tuya project.
+Current scope is Tuya Cloud device discovery, capability inspection, and basic control from a Smart Life/Tuya project.
 
 ## Configuration
 

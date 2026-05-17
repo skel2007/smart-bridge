@@ -35,3 +35,5 @@ The domain model stays free of Tuya-specific metadata. Tuya specifications and a
 The low-level Tuya API layer remains a concrete implementation detail. Existing `httptest`-based tests continue to exercise real request paths, URLs, request bodies, signing headers, and response envelopes.
 
 The split adds one internal layer, but it localizes future changes: retries, token refresh behavior, and Tuya endpoint DTO changes belong near `api`, while capability mapping and specification caching belong near `tuya.Client`.
+
+The current `tuya.Client` is sufficient for short-lived CLI command execution. A future long-running HTTP service must explicitly address concurrent access to token state and any specification cache before sharing a client instance across requests.
