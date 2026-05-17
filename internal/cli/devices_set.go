@@ -179,12 +179,12 @@ func (spec devicesSetCommandSpec) name() string {
 }
 
 func runDevicesSet(cmd *cobra.Command, rootOpts *options, devicesOpts *devicesOptions, deviceID string, command devices.CapabilityCommand) error {
-	client, err := newTuyaClient(rootOpts.configPath)
+	gateway, err := loadDeviceGateway(rootOpts.configPath)
 	if err != nil {
 		return err
 	}
 
-	if err := client.SendCommand(cmd.Context(), deviceID, command); err != nil {
+	if err := gateway.SendCommand(cmd.Context(), deviceID, command); err != nil {
 		return err
 	}
 

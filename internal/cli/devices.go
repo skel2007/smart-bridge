@@ -59,12 +59,12 @@ func newDevicesCapabilitiesCommand(rootOpts *options, opts *devicesOptions) *cob
 }
 
 func runDevicesList(cmd *cobra.Command, rootOpts *options, opts *devicesOptions) error {
-	client, err := newTuyaClient(rootOpts.configPath)
+	gateway, err := loadDeviceGateway(rootOpts.configPath)
 	if err != nil {
 		return err
 	}
 
-	deviceList, err := client.ListDevices(cmd.Context())
+	deviceList, err := gateway.ListDevices(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -82,12 +82,12 @@ func runDevicesList(cmd *cobra.Command, rootOpts *options, opts *devicesOptions)
 }
 
 func runDevicesCapabilities(cmd *cobra.Command, rootOpts *options, opts *devicesOptions, deviceID string) error {
-	client, err := newTuyaClient(rootOpts.configPath)
+	gateway, err := loadDeviceGateway(rootOpts.configPath)
 	if err != nil {
 		return err
 	}
 
-	capabilities, err := client.ListCapabilities(cmd.Context(), deviceID)
+	capabilities, err := gateway.ListCapabilities(cmd.Context(), deviceID)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func runDevicesCapabilities(cmd *cobra.Command, rootOpts *options, opts *devices
 	return nil
 }
 
-func newTuyaClient(configPath string) (*tuya.Client, error) {
+func loadDeviceGateway(configPath string) (devices.DeviceGateway, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return nil, err

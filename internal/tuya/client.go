@@ -19,8 +19,6 @@ type Client struct {
 	api *api
 }
 
-var _ devices.DeviceGateway = (*Client)(nil)
-
 type Option func(*Client)
 
 func WithHTTPClient(httpClient *http.Client) Option {
