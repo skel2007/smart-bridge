@@ -2,7 +2,6 @@ package tuya
 
 import (
 	"encoding/json"
-	"math"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
@@ -157,30 +156,6 @@ func decodeRawJSON(raw json.RawMessage, out any) bool {
 	}
 
 	return json.Unmarshal(raw, out) == nil
-}
-
-func scaleTuyaRangePercent(value float64, minValue float64, maxValue float64) float64 {
-	if maxValue <= minValue {
-		return value
-	}
-
-	return (value - minValue) / (maxValue - minValue) * 100
-}
-
-func roundToPrecision(value float64, precision float64) float64 {
-	if precision <= 0 {
-		return value
-	}
-
-	return math.Round(value/precision) * precision
-}
-
-func scaleTuyaColorPercent(value float64, maxValue float64) float64 {
-	if maxValue <= 0 {
-		return value
-	}
-
-	return value / maxValue * 100
 }
 
 type tuyaIntegerValues struct {

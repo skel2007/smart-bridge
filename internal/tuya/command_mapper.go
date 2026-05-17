@@ -2,7 +2,6 @@ package tuya
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
@@ -59,15 +58,7 @@ func mapRangeCommandValue(value float64, rawValues []byte) (int, error) {
 		return 0, fmt.Errorf("tuya range values are missing or invalid")
 	}
 
-	return int(math.Round(scaleDomainPercentToTuyaRange(value, tuyaValues.Min, tuyaValues.Max))), nil
-}
-
-func scaleDomainPercentToTuyaRange(value float64, minValue float64, maxValue float64) float64 {
-	if maxValue <= minValue {
-		return value
-	}
-
-	return minValue + value/100*(maxValue-minValue)
+	return int(roundToPrecision(scaleDomainPercentToTuyaRange(value, tuyaValues.Min, tuyaValues.Max), 1)), nil
 }
 
 func mapColorCommandValue(value devices.HSVColor, code string) tuyaHSVValue {
@@ -81,14 +72,6 @@ func mapColorCommandValue(value devices.HSVColor, code string) tuyaHSVValue {
 		Saturation: scaleDomainPercentToTuyaColor(value.Saturation, maxSaturationValue),
 		Value:      scaleDomainPercentToTuyaColor(value.Value, maxSaturationValue),
 	}
-}
-
-func scaleDomainPercentToTuyaColor(value float64, maxValue float64) float64 {
-	if maxValue <= 0 {
-		return value
-	}
-
-	return math.Round(value / 100 * maxValue)
 }
 
 func mapModeCommandValue(value string, rawValues []byte) (string, error) {
