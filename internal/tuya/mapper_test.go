@@ -99,6 +99,18 @@ func TestMapCapability(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			name: "range with invalid tuya values",
+			function: tuyaFunctionSpec{
+				Code: "bright_value_v2",
+			},
+			state: []byte(`1000`),
+			want: devices.NewRangeCapabilityWithoutState(
+				devices.CapabilityInstanceBrightness,
+				devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
+			),
+			wantOK: true,
+		},
+		{
 			name:     "color",
 			function: tuyaFunctionSpec{Code: "colour_data_v2"},
 			state:    []byte(`"{\"h\":120,\"s\":800,\"v\":900}"`),

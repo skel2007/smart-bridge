@@ -72,7 +72,7 @@ func mapCommandValue(command devices.CapabilityCommand, function tuyaFunctionSpe
 
 func mapRangeCommandValue(value float64, rawValues []byte) (int, error) {
 	var tuyaValues tuyaIntegerValues
-	if !decodeTuyaValues(rawValues, &tuyaValues) || tuyaValues.Max <= tuyaValues.Min {
+	if !decodeTuyaValues(rawValues, &tuyaValues) || !tuyaValues.validRange() {
 		return 0, fmt.Errorf("tuya range values are missing or invalid")
 	}
 

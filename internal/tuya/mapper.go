@@ -85,12 +85,14 @@ func mapOnOffCapability(state json.RawMessage) devices.Capability {
 
 func mapPercentRangeCapability(instance devices.CapabilityInstance, values json.RawMessage, state json.RawMessage) devices.Capability {
 	var tuyaValues tuyaIntegerValues
-	decodeTuyaValues(values, &tuyaValues)
 
 	parameters := devices.RangeParameters{
 		Min:       0,
 		Max:       100,
 		Precision: 1,
+	}
+	if !decodeTuyaValues(values, &tuyaValues) || !tuyaValues.validRange() {
+		return devices.NewRangeCapabilityWithoutState(instance, parameters)
 	}
 
 	var value float64
@@ -182,6 +184,10 @@ type tuyaIntegerValues struct {
 	Max   float64 `json:"max"`
 	Scale float64 `json:"scale"`
 	Step  float64 `json:"step"`
+}
+
+func (values tuyaIntegerValues) validRange() bool {
+	return values.Max > values.Min
 }
 
 type tuyaEnumValues struct {
