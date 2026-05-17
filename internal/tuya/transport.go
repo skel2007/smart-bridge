@@ -11,26 +11,26 @@ import (
 	"strconv"
 )
 
-func (client *Client) do(ctx context.Context, method, path string, query url.Values, body []byte, accessToken string, out any) error {
+func (api *api) do(ctx context.Context, method, path string, query url.Values, body []byte, accessToken string, out any) error {
 	canonical := canonicalURL(path, query)
-	requestURL := client.endpoint + canonical
+	requestURL := api.endpoint + canonical
 
 	req, err := http.NewRequestWithContext(ctx, method, requestURL, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("create tuya request: %w", err)
 	}
 
-	nonce, err := client.nonce()
+	nonce, err := api.nonce()
 	if err != nil {
 		return fmt.Errorf("create tuya request nonce: %w", err)
 	}
 
-	timestamp := strconv.FormatInt(client.now().UnixMilli(), 10)
-	req.Header.Set("client_id", client.clientID)
+	timestamp := strconv.FormatInt(api.now().UnixMilli(), 10)
+	req.Header.Set("client_id", api.clientID)
 	req.Header.Set("sign_method", "HMAC-SHA256")
 	req.Header.Set("t", timestamp)
 	req.Header.Set("nonce", nonce)
-	req.Header.Set("sign", signRequest(client.clientSecret, client.clientID, accessToken, timestamp, nonce, method, canonical, body))
+	req.Header.Set("sign", signRequest(api.clientSecret, api.clientID, accessToken, timestamp, nonce, method, canonical, body))
 	if accessToken != "" {
 		req.Header.Set("access_token", accessToken)
 	}
@@ -38,7 +38,7 @@ func (client *Client) do(ctx context.Context, method, path string, query url.Val
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := client.httpClient.Do(req)
+	resp, err := api.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("call tuya api: %w", err)
 	}

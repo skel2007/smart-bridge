@@ -39,10 +39,10 @@ func postRoute(uri string) testRoute {
 	return route(http.MethodPost, uri)
 }
 
-func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *testTuyaAPI) {
+func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *testAPI) {
 	t.Helper()
 
-	api := &testTuyaAPI{t: t, routes: routes}
+	api := &testAPI{t: t, routes: routes}
 	api.server = httptest.NewServer(http.HandlerFunc(api.handle))
 	t.Cleanup(api.server.Close)
 
@@ -64,7 +64,7 @@ func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *t
 	return client, api
 }
 
-type testTuyaAPI struct {
+type testAPI struct {
 	t        *testing.T
 	server   *httptest.Server
 	routes   map[testRoute]testResponse
@@ -73,7 +73,7 @@ type testTuyaAPI struct {
 	bodies   []string
 }
 
-func (api *testTuyaAPI) handle(w http.ResponseWriter, req *http.Request) {
+func (api *testAPI) handle(w http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		api.t.Errorf("read request body: %v", err)
@@ -99,7 +99,7 @@ func (api *testTuyaAPI) handle(w http.ResponseWriter, req *http.Request) {
 	_, _ = w.Write([]byte(resp.body))
 }
 
-func (api *testTuyaAPI) requestURIs() []string {
+func (api *testAPI) requestURIs() []string {
 	api.mu.Lock()
 	defer api.mu.Unlock()
 
