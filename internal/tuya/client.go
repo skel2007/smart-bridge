@@ -2,6 +2,7 @@ package tuya
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -97,16 +98,25 @@ func (client *Client) ListCapabilities(ctx context.Context, deviceID string) ([]
 	return mapCapabilities(specifications, status), nil
 }
 
-func (client *Client) SendCommand(ctx context.Context, deviceID string, command devices.CapabilityCommand) error {
+func (client *Client) SendCommands(ctx context.Context, deviceID string, commands []devices.CapabilityCommand) error {
+	if len(commands) == 0 {
+		return errors.New("capability commands are required")
+	}
+
 	specifications, err := client.api.getDeviceSpecifications(ctx, deviceID)
 	if err != nil {
 		return err
 	}
 
-	mappedCommand, err := mapCapabilityCommand(command, specifications)
-	if err != nil {
-		return err
+	mappedCommands := make([]tuyaCommand, 0, len(commands))
+	for _, command := range commands {
+		mappedCommand, err := mapCapabilityCommand(command, specifications)
+		if err != nil {
+			return err
+		}
+
+		mappedCommands = append(mappedCommands, mappedCommand)
 	}
 
-	return client.api.sendCommands(ctx, deviceID, []tuyaCommand{mappedCommand})
+	return client.api.sendCommands(ctx, deviceID, mappedCommands)
 }

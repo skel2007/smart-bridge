@@ -184,7 +184,7 @@ func runDevicesSet(cmd *cobra.Command, rootOpts *options, devicesOpts *devicesOp
 		return err
 	}
 
-	if err := gateway.SendCommand(cmd.Context(), deviceID, command); err != nil {
+	if err := gateway.SendCommands(cmd.Context(), deviceID, []devices.CapabilityCommand{command}); err != nil {
 		return err
 	}
 

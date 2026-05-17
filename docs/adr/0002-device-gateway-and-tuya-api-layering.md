@@ -10,7 +10,7 @@ smart-bridge currently has one Tuya client that handles domain-level device oper
 
 The CLI is the only application adapter today, but a future HTTP adapter is expected. smart-bridge may also support upstream platforms beyond Tuya. Those callers should not depend on Tuya-specific DTOs, signing, endpoints, or specification caching details.
 
-Tuya command mapping needs upstream specifications. For example, a domain command such as `brightness=50` must be converted to the correct Tuya function code and vendor range before it can be sent. Re-reading those specifications for every command is acceptable for the current short-lived CLI, but a future long-running service will likely need caching.
+Tuya command mapping needs upstream specifications. For example, domain commands such as `power=on` and `brightness=50` must be converted to the correct Tuya function codes and vendor ranges before they can be sent. Re-reading those specifications for every command request is acceptable for the current short-lived CLI, but a future long-running service will likely need caching.
 
 ## Decision
 
@@ -18,7 +18,7 @@ Introduce a vendor-neutral `DeviceGateway` interface in the domain package. It r
 
 - list **Devices**;
 - list **Capabilities** for a known **Device**;
-- send a **Capability Command** to a known **Device**.
+- send **Capability Commands** to a known **Device**.
 
 Tuya will implement this interface with a high-level `tuya.Client`. This client is responsible for domain mapping and is the future home for Tuya specification caching.
 
