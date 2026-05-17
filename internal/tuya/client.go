@@ -40,6 +40,8 @@ type Client struct {
 	accessToken  string
 }
 
+var _ devices.DeviceGateway = (*Client)(nil)
+
 type Option func(*Client)
 
 func WithHTTPClient(httpClient *http.Client) Option {
