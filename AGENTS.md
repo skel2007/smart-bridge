@@ -21,12 +21,15 @@ cmd/smart-bridge -> internal/cli -> internal/config, internal/tuya, internal/dev
 Expected future HTTP app dependency direction:
 
 ```text
-cmd/smart-bridge-http -> internal/yandex -> internal/config, internal/tuya, internal/devices
+cmd/smart-bridge-http -> internal/config, internal/tuya, internal/yandex
+internal/yandex -> internal/devices
+internal/tuya -> internal/devices
 ```
 
 Rules:
 
 - Shared behavior should live below adapter layers, not inside the CLI package.
+- `internal/yandex` should use `devices.DeviceGateway`; it must not depend on `internal/tuya` directly.
 - Prefer small, focused changes that match existing package boundaries.
 
 ## Workflow

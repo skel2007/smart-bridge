@@ -31,31 +31,17 @@ Build the CLI binary:
 go build -o bin/smart-bridge ./cmd/smart-bridge
 ```
 
-List devices:
+Inspect devices and capabilities:
 
 ```sh
 bin/smart-bridge devices list
-```
-
-Print devices as JSON:
-
-```sh
 bin/smart-bridge devices list --json
-```
-
-List capabilities for a device:
-
-```sh
 bin/smart-bridge devices capabilities <device-id>
-```
-
-Print capabilities as JSON:
-
-```sh
 bin/smart-bridge devices capabilities <device-id> --json
+bin/smart-bridge --config path/to/config.yaml devices list
 ```
 
-Set a device capability:
+Set device capabilities:
 
 ```sh
 bin/smart-bridge devices set power <device-id> on
@@ -65,15 +51,11 @@ bin/smart-bridge devices set color <device-id> --hue 120 --saturation 80 --value
 bin/smart-bridge devices set mode <device-id> white
 ```
 
-`color` is available only when the device exposes a color capability. Some Tuya lights expose only power, brightness, color temperature, and mode/scene controls.
-
-Use a custom config path:
-
-```sh
-bin/smart-bridge --config path/to/config.yaml devices list
-```
+Use `--json` with `devices list` or `devices capabilities` to print JSON.
 
 Known range capabilities use vendor-neutral `0..100` values in output. For example, Tuya brightness and color temperature level ranges are normalized before printing or JSON encoding.
+
+`color` is available only when the device exposes a color capability. Some Tuya lights expose only power, brightness, color temperature, and mode/scene controls.
 
 ## Development
 
