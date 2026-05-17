@@ -65,6 +65,8 @@ bin/smart-bridge devices set color <device-id> --hue 120 --saturation 80 --value
 bin/smart-bridge devices set mode <device-id> white
 ```
 
+`color` is available only when the device exposes a color capability. Some Tuya lights expose only power, brightness, color temperature, and mode/scene controls.
+
 Use a custom config path:
 
 ```sh
