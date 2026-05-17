@@ -32,11 +32,26 @@ _Avoid_: Tuya command, command payload, device command
 A vendor-neutral read-only characteristic reported by a **Device**, such as temperature, humidity, or battery level.
 _Avoid_: Tuya status, Yandex API property
 
+**Upstream Platform**:
+An external smart-home platform that smart-bridge reads from and sends device commands to.
+_Avoid_: backend, source API
+
+**Downstream Platform**:
+An external smart-home platform that smart-bridge exposes its known devices to.
+_Avoid_: provider, backend, target API
+
+**Personal Bridge**:
+A single-user smart-bridge instance that exposes one configured smart-home environment.
+_Avoid_: public provider, multi-tenant service
+
 ## Relationships
 
+- smart-bridge is a **Personal Bridge**, not a public multi-user device provider.
 - A **Device** is not tied to Tuya-specific metadata or Yandex-specific API fields.
 - A **Device** is a summary loaded from upstream device listing APIs.
 - **Capabilities** and **Properties** are loaded separately for a known **Device** when additional upstream reads are needed.
+- Tuya is the first **Upstream Platform**.
+- Yandex Smart Home API is the first planned **Downstream Platform**.
 - A **Device Type** is mapped from upstream platform categories and later mapped to downstream platform device types.
 - A **Capability** is mapped from upstream platform functions and later mapped to downstream platform capabilities.
 - A **Capability** has a **Capability Type** and a **Capability Instance**.
