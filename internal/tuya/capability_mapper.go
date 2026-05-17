@@ -6,33 +6,6 @@ import (
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
 
-func mapDevice(device tuyaDevice) devices.Device {
-	name := device.Name
-	if device.CustomName != "" {
-		name = device.CustomName
-	}
-
-	return devices.Device{
-		ID:     device.ID,
-		Name:   name,
-		Type:   mapDeviceType(device.Category),
-		Online: device.IsOnline,
-	}
-}
-
-func mapDeviceType(category string) devices.DeviceType {
-	switch category {
-	case "dj", "xdd", "fwd", "dc", "dd", "gyd", "fsd", "tyndj", "tgq":
-		return devices.DeviceTypeLight
-	case "cz", "pc":
-		return devices.DeviceTypeSocket
-	case "kg", "cjkg", "ckqdkg", "clkg", "tgkg":
-		return devices.DeviceTypeSwitch
-	default:
-		return devices.DeviceTypeOther
-	}
-}
-
 func mapCapabilities(specifications tuyaDeviceSpecifications, status []tuyaDeviceStatus) []devices.Capability {
 	statusByCode := make(map[string]json.RawMessage, len(status))
 	for _, item := range status {
@@ -135,46 +108,4 @@ func mapModeCapability(values json.RawMessage, state json.RawMessage) devices.Ca
 	}
 
 	return devices.NewModeCapabilityWithoutState(devices.CapabilityInstanceWorkMode, parameters)
-}
-
-func decodeTuyaValues(raw json.RawMessage, out any) bool {
-	if decodeRawJSON(raw, out) {
-		return true
-	}
-
-	var text string
-	if !decodeRawJSON(raw, &text) || text == "" {
-		return false
-	}
-
-	return json.Unmarshal([]byte(text), out) == nil
-}
-
-func decodeRawJSON(raw json.RawMessage, out any) bool {
-	if len(raw) == 0 {
-		return false
-	}
-
-	return json.Unmarshal(raw, out) == nil
-}
-
-type tuyaIntegerValues struct {
-	Min   float64 `json:"min"`
-	Max   float64 `json:"max"`
-	Scale float64 `json:"scale"`
-	Step  float64 `json:"step"`
-}
-
-func (values tuyaIntegerValues) validRange() bool {
-	return values.Max > values.Min
-}
-
-type tuyaEnumValues struct {
-	Range []string `json:"range"`
-}
-
-type tuyaHSVValue struct {
-	Hue        float64 `json:"h"`
-	Saturation float64 `json:"s"`
-	Value      float64 `json:"v"`
 }
