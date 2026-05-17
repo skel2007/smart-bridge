@@ -2,6 +2,7 @@ package tuya
 
 import (
 	"encoding/json"
+	"math"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
@@ -94,7 +95,11 @@ func mapPercentRangeCapability(instance devices.CapabilityInstance, values json.
 
 	var value float64
 	if decodeRawJSON(state, &value) {
-		return devices.NewRangeCapability(instance, scaleTuyaRangePercent(value, tuyaValues.Min, tuyaValues.Max), parameters)
+		return devices.NewRangeCapability(
+			instance,
+			roundToPrecision(scaleTuyaRangePercent(value, tuyaValues.Min, tuyaValues.Max), parameters.Precision),
+			parameters,
+		)
 	}
 
 	return devices.NewRangeCapabilityWithoutState(instance, parameters)
@@ -154,6 +159,14 @@ func scaleTuyaRangePercent(value float64, minValue float64, maxValue float64) fl
 	}
 
 	return (value - minValue) / (maxValue - minValue) * 100
+}
+
+func roundToPrecision(value float64, precision float64) float64 {
+	if precision <= 0 {
+		return value
+	}
+
+	return math.Round(value/precision) * precision
 }
 
 func scaleTuyaColorPercent(value float64, maxValue float64) float64 {

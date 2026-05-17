@@ -57,6 +57,34 @@ func TestMapCapability(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			name: "brightness rounded to precision",
+			function: tuyaFunctionSpec{
+				Code:   "bright_value_v2",
+				Values: []byte(`"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"`),
+			},
+			state: []byte(`20`),
+			want: devices.NewRangeCapability(
+				devices.CapabilityInstanceBrightness,
+				1,
+				devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
+			),
+			wantOK: true,
+		},
+		{
+			name: "brightness middle",
+			function: tuyaFunctionSpec{
+				Code:   "bright_value_v2",
+				Values: []byte(`"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"`),
+			},
+			state: []byte(`505`),
+			want: devices.NewRangeCapability(
+				devices.CapabilityInstanceBrightness,
+				50,
+				devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
+			),
+			wantOK: true,
+		},
+		{
 			name: "color temperature level",
 			function: tuyaFunctionSpec{
 				Code:   "temp_value_v2",

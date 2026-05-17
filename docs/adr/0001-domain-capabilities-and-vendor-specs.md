@@ -19,6 +19,8 @@ The same mapping problem exists in both directions:
 
 Domain capabilities use vendor-neutral names and scales. Known range capabilities such as `brightness` and `color_temperature_level` are represented as `0..100` in the domain model.
 
+Read-side range values are rounded to the domain capability precision after adapter normalization, so floating-point artifacts from upstream ranges do not leak into domain output.
+
 Domain capability objects do not store upstream command metadata such as Tuya function code, value range, scale, or step. That metadata belongs to the upstream adapter.
 
 Domain capability commands are also vendor-neutral. A command targets one known capability instance and carries typed desired state, but it does not carry upstream command metadata or raw platform payloads.
