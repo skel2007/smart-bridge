@@ -1,4 +1,4 @@
-package tuya
+package cloud
 
 import (
 	"context"
@@ -22,7 +22,13 @@ const (
 	listPageSize             = 20
 )
 
-type api struct {
+type Credentials struct {
+	Endpoint     string
+	ClientID     string
+	ClientSecret string
+}
+
+type API struct {
 	endpoint     string
 	clientID     string
 	clientSecret string
@@ -32,8 +38,8 @@ type api struct {
 	accessToken  string
 }
 
-func newAPI(credentials Credentials) *api {
-	return &api{
+func NewAPI(credentials Credentials) *API {
+	return &API{
 		endpoint:     strings.TrimRight(credentials.Endpoint, "/"),
 		clientID:     credentials.ClientID,
 		clientSecret: credentials.ClientSecret,
@@ -43,8 +49,8 @@ func newAPI(credentials Credentials) *api {
 	}
 }
 
-func (api *api) listProjectDevices(ctx context.Context) ([]tuyaDevice, error) {
-	var out []tuyaDevice
+func (api *API) ListProjectDevices(ctx context.Context) ([]Device, error) {
+	var out []Device
 	var lastID string
 
 	for {
@@ -70,7 +76,7 @@ func (api *api) listProjectDevices(ctx context.Context) ([]tuyaDevice, error) {
 	}
 }
 
-func (api *api) listProjectDevicesPage(ctx context.Context, lastID string) ([]tuyaDevice, error) {
+func (api *API) listProjectDevicesPage(ctx context.Context, lastID string) ([]Device, error) {
 	if err := api.ensureAccessToken(ctx); err != nil {
 		return nil, err
 	}
@@ -81,7 +87,7 @@ func (api *api) listProjectDevicesPage(ctx context.Context, lastID string) ([]tu
 		query.Set("last_id", lastID)
 	}
 
-	var result []tuyaDevice
+	var result []Device
 	if err := api.do(ctx, http.MethodGet, projectDevices, query, nil, api.accessToken, &result); err != nil {
 		return nil, err
 	}
@@ -89,29 +95,29 @@ func (api *api) listProjectDevicesPage(ctx context.Context, lastID string) ([]tu
 	return result, nil
 }
 
-func (api *api) getDeviceSpecifications(ctx context.Context, deviceID string) (tuyaDeviceSpecifications, error) {
+func (api *API) GetDeviceSpecifications(ctx context.Context, deviceID string) (DeviceSpecifications, error) {
 	if err := api.ensureAccessToken(ctx); err != nil {
-		return tuyaDeviceSpecifications{}, err
+		return DeviceSpecifications{}, err
 	}
 
 	path := fmt.Sprintf(deviceSpecificationsPath, url.PathEscape(deviceID))
 
-	var result tuyaDeviceSpecifications
+	var result DeviceSpecifications
 	if err := api.do(ctx, http.MethodGet, path, nil, nil, api.accessToken, &result); err != nil {
-		return tuyaDeviceSpecifications{}, err
+		return DeviceSpecifications{}, err
 	}
 
 	return result, nil
 }
 
-func (api *api) getDeviceStatus(ctx context.Context, deviceID string) ([]tuyaDeviceStatus, error) {
+func (api *API) GetDeviceStatus(ctx context.Context, deviceID string) ([]DeviceStatus, error) {
 	if err := api.ensureAccessToken(ctx); err != nil {
 		return nil, err
 	}
 
 	path := fmt.Sprintf(deviceStatusPath, url.PathEscape(deviceID))
 
-	var result []tuyaDeviceStatus
+	var result []DeviceStatus
 	if err := api.do(ctx, http.MethodGet, path, nil, nil, api.accessToken, &result); err != nil {
 		return nil, err
 	}
@@ -119,12 +125,12 @@ func (api *api) getDeviceStatus(ctx context.Context, deviceID string) ([]tuyaDev
 	return result, nil
 }
 
-func (api *api) sendCommands(ctx context.Context, deviceID string, commands []tuyaCommand) error {
+func (api *API) SendCommands(ctx context.Context, deviceID string, commands []Command) error {
 	if err := api.ensureAccessToken(ctx); err != nil {
 		return err
 	}
 
-	body, err := json.Marshal(tuyaCommandsRequest{Commands: commands})
+	body, err := json.Marshal(commandsRequest{Commands: commands})
 	if err != nil {
 		return fmt.Errorf("encode tuya commands request: %w", err)
 	}
@@ -134,7 +140,7 @@ func (api *api) sendCommands(ctx context.Context, deviceID string, commands []tu
 	return api.do(ctx, http.MethodPost, path, nil, body, api.accessToken, nil)
 }
 
-func (api *api) ensureAccessToken(ctx context.Context) error {
+func (api *API) ensureAccessToken(ctx context.Context) error {
 	if api.accessToken != "" {
 		return nil
 	}
@@ -142,7 +148,7 @@ func (api *api) ensureAccessToken(ctx context.Context) error {
 	query := url.Values{}
 	query.Set("grant_type", "1")
 
-	var result tuyaTokenResult
+	var result tokenResult
 	if err := api.do(ctx, http.MethodGet, tokenPath, query, nil, "", &result); err != nil {
 		return err
 	}

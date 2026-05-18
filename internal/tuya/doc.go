@@ -1,2 +1,2 @@
-// Package tuya contains Tuya Cloud OpenAPI client code.
+// Package tuya contains the Tuya upstream device gateway.
 package tuya

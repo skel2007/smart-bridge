@@ -22,11 +22,11 @@ Introduce a vendor-neutral `DeviceGateway` interface in the domain package. It r
 
 Tuya will implement this interface with a high-level `tuya.Gateway`. This gateway is responsible for domain mapping and is the future home for Tuya specification caching.
 
-Inside the Tuya adapter, separate low-level Tuya Cloud endpoint calls into an unexported concrete `api` type. The `api` type returns Tuya DTOs, owns Tuya authentication/token state, and uses the existing transport/signing/response decoding code. It does not return domain types.
+Inside the Tuya adapter, separate low-level Tuya Cloud endpoint calls into `internal/tuya/internal/cloud`. Its `API` type returns Tuya DTOs, owns Tuya authentication/token state, and uses the existing transport/signing/response decoding code. It does not return domain types.
 
-Use an unexported `tuyaAPI` interface between `tuya.Gateway` and `api`. This keeps gateway tests focused on domain mapping and error propagation without exercising HTTP transport details.
+Use an unexported `tuyaAPI` interface between `tuya.Gateway` and `cloud.API`. This keeps gateway tests focused on domain mapping and error propagation without exercising HTTP transport details.
 
-Keep `tuya.NewGateway(credentials)` as the construction entry point. Callers should not construct or depend on `api` directly.
+Keep `tuya.NewGateway(credentials)` as the construction entry point. Callers should not construct or depend on `cloud.API` directly.
 
 ## Consequences
 
@@ -34,7 +34,7 @@ CLI and the future Yandex Smart Home API layer can depend on `devices.DeviceGate
 
 The domain model stays free of Tuya-specific metadata. Tuya specifications and any future cache remain inside the Tuya adapter, consistent with ADR 0001.
 
-The low-level Tuya API layer remains an implementation detail. `httptest`-based tests exercise real request paths, URLs, request bodies, signing headers, and response envelopes at the `api`/transport level. Gateway tests use a fake `tuyaAPI`.
+The low-level Tuya API layer remains an implementation detail. `httptest`-based tests exercise real request paths, URLs, request bodies, signing headers, and response envelopes inside `internal/tuya/internal/cloud`. Gateway tests use a fake `tuyaAPI`.
 
 The split adds one internal layer, but it localizes future changes: retries, token refresh behavior, and Tuya endpoint DTO changes belong near `api`, while capability mapping and specification caching belong near `tuya.Gateway`.
 

@@ -1,4 +1,4 @@
-package tuya
+package cloud
 
 import (
 	"io"
@@ -39,14 +39,14 @@ func postRoute(uri string) testRoute {
 	return route(http.MethodPost, uri)
 }
 
-func newTestAPI(t *testing.T, routes map[testRoute]testResponse) (*api, *testAPI) {
+func newTestAPI(t *testing.T, routes map[testRoute]testResponse) (*API, *testAPI) {
 	t.Helper()
 
 	testAPI := &testAPI{t: t, routes: routes}
 	testAPI.server = httptest.NewServer(http.HandlerFunc(testAPI.handle))
 	t.Cleanup(testAPI.server.Close)
 
-	api := newAPI(Credentials{
+	api := NewAPI(Credentials{
 		Endpoint:     testAPI.server.URL,
 		ClientID:     "client",
 		ClientSecret: "super-secret",

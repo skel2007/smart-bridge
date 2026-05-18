@@ -1,4 +1,4 @@
-package tuya
+package cloud
 
 import (
 	"context"
@@ -18,7 +18,7 @@ func TestAPIListProjectDevicesFetchesAllPages(t *testing.T) {
 		getRoute(nextPageURI): tuyaResult(`[{"id":"dev-21","name":"Device 21","category":"dj","isOnline":true}]`),
 	})
 
-	deviceList, err := api.listProjectDevices(context.Background())
+	deviceList, err := api.ListProjectDevices(context.Background())
 
 	require.NoError(t, err)
 	require.Len(t, deviceList, 21)
@@ -33,7 +33,7 @@ func TestAPIListProjectDevicesReturnsErrorWhenPageCursorIsMissing(t *testing.T) 
 		getRoute(devicesURI): tuyaResult(tuyaDevicesWithMissingLastIDJSON()),
 	})
 
-	_, err := api.listProjectDevices(context.Background())
+	_, err := api.ListProjectDevices(context.Background())
 
 	require.EqualError(t, err, "tuya device list response missing id for pagination")
 }
@@ -43,7 +43,7 @@ func TestAPIListProjectDevicesReturnsErrorWhenTokenIsMissing(t *testing.T) {
 		getRoute(tokenURI): tuyaResult(`{}`),
 	})
 
-	_, err := api.listProjectDevices(context.Background())
+	_, err := api.ListProjectDevices(context.Background())
 
 	require.EqualError(t, err, "tuya token response missing access_token")
 }
@@ -54,7 +54,7 @@ func TestAPIListProjectDevicesDoesNotExposeSecretsInErrors(t *testing.T) {
 		getRoute(devicesURI): tuyaError(http.StatusOK, "1106", "permission denied"),
 	})
 
-	_, err := api.listProjectDevices(context.Background())
+	_, err := api.ListProjectDevices(context.Background())
 
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), "super-secret")
@@ -68,7 +68,7 @@ func TestAPIGetDeviceSpecificationsEscapesDeviceID(t *testing.T) {
 		getRoute(specificationsURI): tuyaResult(`{"functions":[]}`),
 	})
 
-	_, err := api.getDeviceSpecifications(context.Background(), "device/id with space")
+	_, err := api.GetDeviceSpecifications(context.Background(), "device/id with space")
 
 	require.NoError(t, err)
 	require.Equal(t, []string{tokenURI, specificationsURI}, testAPI.requestURIs())
@@ -81,7 +81,7 @@ func TestAPIGetDeviceStatusEscapesDeviceID(t *testing.T) {
 		getRoute(statusURI): tuyaResult(`[]`),
 	})
 
-	_, err := api.getDeviceStatus(context.Background(), "device/id with space")
+	_, err := api.GetDeviceStatus(context.Background(), "device/id with space")
 
 	require.NoError(t, err)
 	require.Equal(t, []string{tokenURI, statusURI}, testAPI.requestURIs())
@@ -93,7 +93,7 @@ func TestAPISendCommands(t *testing.T) {
 		postRoute(deviceCommandsURI): tuyaResult(`true`),
 	})
 
-	err := api.sendCommands(context.Background(), "device-id", []tuyaCommand{
+	err := api.SendCommands(context.Background(), "device-id", []Command{
 		{Code: "switch_led", Value: true},
 		{Code: "bright_value_v2", Value: 505},
 	})
@@ -118,7 +118,7 @@ func TestAPISendCommandsEscapesDeviceID(t *testing.T) {
 		postRoute(commandsURI): tuyaResult(`true`),
 	})
 
-	err := api.sendCommands(context.Background(), "device/id with space", []tuyaCommand{
+	err := api.SendCommands(context.Background(), "device/id with space", []Command{
 		{Code: "switch_led", Value: true},
 	})
 

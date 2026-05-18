@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
 )
 
 type Credentials struct {
@@ -18,14 +19,18 @@ type Gateway struct {
 }
 
 type tuyaAPI interface {
-	listProjectDevices(ctx context.Context) ([]tuyaDevice, error)
-	getDeviceSpecifications(ctx context.Context, deviceID string) (tuyaDeviceSpecifications, error)
-	getDeviceStatus(ctx context.Context, deviceID string) ([]tuyaDeviceStatus, error)
-	sendCommands(ctx context.Context, deviceID string, commands []tuyaCommand) error
+	ListProjectDevices(ctx context.Context) ([]tuyaDevice, error)
+	GetDeviceSpecifications(ctx context.Context, deviceID string) (tuyaDeviceSpecifications, error)
+	GetDeviceStatus(ctx context.Context, deviceID string) ([]tuyaDeviceStatus, error)
+	SendCommands(ctx context.Context, deviceID string, commands []tuyaCommand) error
 }
 
 func NewGateway(credentials Credentials) *Gateway {
-	return newGateway(newAPI(credentials))
+	return newGateway(cloud.NewAPI(cloud.Credentials{
+		Endpoint:     credentials.Endpoint,
+		ClientID:     credentials.ClientID,
+		ClientSecret: credentials.ClientSecret,
+	}))
 }
 
 func newGateway(api tuyaAPI) *Gateway {
@@ -33,7 +38,7 @@ func newGateway(api tuyaAPI) *Gateway {
 }
 
 func (gateway *Gateway) ListDevices(ctx context.Context) ([]devices.Device, error) {
-	result, err := gateway.api.listProjectDevices(ctx)
+	result, err := gateway.api.ListProjectDevices(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -47,12 +52,12 @@ func (gateway *Gateway) ListDevices(ctx context.Context) ([]devices.Device, erro
 }
 
 func (gateway *Gateway) ListCapabilities(ctx context.Context, deviceID string) ([]devices.Capability, error) {
-	specifications, err := gateway.api.getDeviceSpecifications(ctx, deviceID)
+	specifications, err := gateway.api.GetDeviceSpecifications(ctx, deviceID)
 	if err != nil {
 		return nil, err
 	}
 
-	status, err := gateway.api.getDeviceStatus(ctx, deviceID)
+	status, err := gateway.api.GetDeviceStatus(ctx, deviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +70,7 @@ func (gateway *Gateway) SendCommands(ctx context.Context, deviceID string, comma
 		return errors.New("capability commands are required")
 	}
 
-	specifications, err := gateway.api.getDeviceSpecifications(ctx, deviceID)
+	specifications, err := gateway.api.GetDeviceSpecifications(ctx, deviceID)
 	if err != nil {
 		return err
 	}
@@ -80,5 +85,5 @@ func (gateway *Gateway) SendCommands(ctx context.Context, deviceID string, comma
 		mappedCommands = append(mappedCommands, mappedCommand)
 	}
 
-	return gateway.api.sendCommands(ctx, deviceID, mappedCommands)
+	return gateway.api.SendCommands(ctx, deviceID, mappedCommands)
 }

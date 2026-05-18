@@ -1,4 +1,4 @@
-package tuya
+package cloud
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func (api *api) do(ctx context.Context, method, path string, query url.Values, body []byte, accessToken string, out any) error {
+func (api *API) do(ctx context.Context, method, path string, query url.Values, body []byte, accessToken string, out any) error {
 	canonical := canonicalURL(path, query)
 	requestURL := api.endpoint + canonical
 

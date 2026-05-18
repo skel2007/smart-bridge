@@ -157,23 +157,23 @@ type recordingTuyaAPI struct {
 	sentCommands   []tuyaCommand
 }
 
-func (api *recordingTuyaAPI) listProjectDevices(context.Context) ([]tuyaDevice, error) {
+func (api *recordingTuyaAPI) ListProjectDevices(context.Context) ([]tuyaDevice, error) {
 	return api.devices, api.listDevicesErr
 }
 
-func (api *recordingTuyaAPI) getDeviceSpecifications(_ context.Context, deviceID string) (tuyaDeviceSpecifications, error) {
+func (api *recordingTuyaAPI) GetDeviceSpecifications(_ context.Context, deviceID string) (tuyaDeviceSpecifications, error) {
 	api.specificationsDevice = deviceID
 
 	return api.specifications, api.specificationsErr
 }
 
-func (api *recordingTuyaAPI) getDeviceStatus(_ context.Context, deviceID string) ([]tuyaDeviceStatus, error) {
+func (api *recordingTuyaAPI) GetDeviceStatus(_ context.Context, deviceID string) ([]tuyaDeviceStatus, error) {
 	api.statusDevice = deviceID
 
 	return api.status, api.statusErr
 }
 
-func (api *recordingTuyaAPI) sendCommands(_ context.Context, deviceID string, commands []tuyaCommand) error {
+func (api *recordingTuyaAPI) SendCommands(_ context.Context, deviceID string, commands []tuyaCommand) error {
 	api.commandsDevice = deviceID
 	api.sentCommands = commands
 

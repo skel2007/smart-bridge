@@ -1,14 +1,14 @@
-package tuya
+package cloud
 
 import (
 	"encoding/json"
 )
 
-type tuyaTokenResult struct {
+type tokenResult struct {
 	AccessToken string `json:"access_token"`
 }
 
-type tuyaDevice struct {
+type Device struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	CustomName string `json:"customName"`
@@ -16,34 +16,34 @@ type tuyaDevice struct {
 	IsOnline   bool   `json:"isOnline"`
 }
 
-type tuyaDeviceSpecifications struct {
-	Category  string             `json:"category"`
-	Functions []tuyaFunctionSpec `json:"functions"`
-	Status    []tuyaStatusSpec   `json:"status"`
+type DeviceSpecifications struct {
+	Category  string         `json:"category"`
+	Functions []FunctionSpec `json:"functions"`
+	Status    []StatusSpec   `json:"status"`
 }
 
-type tuyaFunctionSpec struct {
+type FunctionSpec struct {
 	Code   string          `json:"code"`
 	Type   string          `json:"type"`
 	Values json.RawMessage `json:"values"`
 }
 
-type tuyaStatusSpec struct {
+type StatusSpec struct {
 	Code   string          `json:"code"`
 	Type   string          `json:"type"`
 	Values json.RawMessage `json:"values"`
 }
 
-type tuyaDeviceStatus struct {
+type DeviceStatus struct {
 	Code  string          `json:"code"`
 	Value json.RawMessage `json:"value"`
 }
 
-type tuyaCommand struct {
+type Command struct {
 	Code  string `json:"code"`
 	Value any    `json:"value"`
 }
 
-type tuyaCommandsRequest struct {
-	Commands []tuyaCommand `json:"commands"`
+type commandsRequest struct {
+	Commands []Command `json:"commands"`
 }
