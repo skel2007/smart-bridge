@@ -39,14 +39,14 @@ func postRoute(uri string) testRoute {
 	return route(http.MethodPost, uri)
 }
 
-func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *testAPI) {
+func newTestGateway(t *testing.T, routes map[testRoute]testResponse) (*Gateway, *testAPI) {
 	t.Helper()
 
 	api := &testAPI{t: t, routes: routes}
 	api.server = httptest.NewServer(http.HandlerFunc(api.handle))
 	t.Cleanup(api.server.Close)
 
-	client := NewClient(
+	gateway := NewGateway(
 		Credentials{
 			Endpoint:     api.server.URL,
 			ClientID:     "client",
@@ -61,7 +61,7 @@ func newTestClient(t *testing.T, routes map[testRoute]testResponse) (*Client, *t
 		}),
 	)
 
-	return client, api
+	return gateway, api
 }
 
 type testAPI struct {

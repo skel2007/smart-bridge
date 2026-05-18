@@ -110,7 +110,7 @@ func loadDeviceGateway(configPath string) (devices.DeviceGateway, error) {
 		return nil, err
 	}
 
-	return tuya.NewClient(tuya.Credentials{
+	return tuya.NewGateway(tuya.Credentials{
 		Endpoint:     cfg.Tuya.Endpoint,
 		ClientID:     cfg.Tuya.ClientID,
 		ClientSecret: cfg.Tuya.ClientSecret,

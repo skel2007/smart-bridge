@@ -30,7 +30,7 @@ The first router covers the REST surface:
 
 All Yandex handlers require `X-Request-Id` and copy it into response `request_id`; missing `X-Request-Id` is HTTP 400.
 
-`internal/yandex` depends on `devices.DeviceGateway`, not on `tuya.Client`. It owns Yandex DTOs and Yandex-specific mapping rules. DTOs stay close to the JSON boundary shape and are not a second domain model. Inside package `internal/yandex`, do not repeat the `Yandex` prefix in DTO names. Use separate capability DTOs for the different Yandex shapes: `CapabilityDescription`, `CapabilityState`, `CapabilityAction`, and `CapabilityActionResult`. Response DTO values may use `any`; request DTO action values should stay as `json.RawMessage` until mapping interprets them by capability `type` and `instance`. Support `custom_data` in DTOs for protocol compatibility, but first-layer mapping ignores it.
+`internal/yandex` depends on `devices.DeviceGateway`, not on `tuya.Gateway`. It owns Yandex DTOs and Yandex-specific mapping rules. DTOs stay close to the JSON boundary shape and are not a second domain model. Inside package `internal/yandex`, do not repeat the `Yandex` prefix in DTO names. Use separate capability DTOs for the different Yandex shapes: `CapabilityDescription`, `CapabilityState`, `CapabilityAction`, and `CapabilityActionResult`. Response DTO values may use `any`; request DTO action values should stay as `json.RawMessage` until mapping interprets them by capability `type` and `instance`. Support `custom_data` in DTOs for protocol compatibility, but first-layer mapping ignores it.
 
 Expose these first-layer Yandex mappings:
 

@@ -6,7 +6,7 @@ Accepted.
 
 ## Context
 
-smart-bridge currently has one Tuya client that handles domain-level device operations, Tuya Cloud endpoints, authentication, request signing, response decoding, and Tuya-specific mapping.
+smart-bridge currently has one Tuya gateway that handles domain-level device operations, Tuya Cloud endpoints, authentication, request signing, response decoding, and Tuya-specific mapping.
 
 The CLI is the only application layer today, but a future Yandex Smart Home API layer is expected. smart-bridge may also support upstream platforms beyond Tuya. Those callers should not depend on Tuya-specific DTOs, signing, endpoints, or specification caching details.
 
@@ -20,20 +20,20 @@ Introduce a vendor-neutral `DeviceGateway` interface in the domain package. It r
 - list **Capabilities** for a known **Device**;
 - send **Capability Commands** to a known **Device**.
 
-Tuya will implement this interface with a high-level `tuya.Client`. This client is responsible for domain mapping and is the future home for Tuya specification caching.
+Tuya will implement this interface with a high-level `tuya.Gateway`. This gateway is responsible for domain mapping and is the future home for Tuya specification caching.
 
 Inside the Tuya adapter, separate low-level Tuya Cloud endpoint calls into an unexported concrete `api` type. The `api` type returns Tuya DTOs, owns Tuya authentication/token state, and uses the existing transport/signing/response decoding code. It does not return domain types and does not expose an interface until there is a second implementation or a concrete testing need.
 
-Keep `tuya.NewClient(credentials, options...)` as the construction entry point. Options may configure the internal `api` implementation, but callers should not construct or depend on `api` directly.
+Keep `tuya.NewGateway(credentials, options...)` as the construction entry point. Options may configure the internal `api` implementation, but callers should not construct or depend on `api` directly.
 
 ## Consequences
 
-CLI and the future Yandex Smart Home API layer can depend on `devices.DeviceGateway` instead of `tuya.Client` when they need a vendor-neutral device source.
+CLI and the future Yandex Smart Home API layer can depend on `devices.DeviceGateway` instead of `tuya.Gateway` when they need a vendor-neutral device source.
 
 The domain model stays free of Tuya-specific metadata. Tuya specifications and any future cache remain inside the Tuya adapter, consistent with ADR 0001.
 
 The low-level Tuya API layer remains a concrete implementation detail. Existing `httptest`-based tests continue to exercise real request paths, URLs, request bodies, signing headers, and response envelopes.
 
-The split adds one internal layer, but it localizes future changes: retries, token refresh behavior, and Tuya endpoint DTO changes belong near `api`, while capability mapping and specification caching belong near `tuya.Client`.
+The split adds one internal layer, but it localizes future changes: retries, token refresh behavior, and Tuya endpoint DTO changes belong near `api`, while capability mapping and specification caching belong near `tuya.Gateway`.
 
-The current `tuya.Client` is sufficient for short-lived CLI command execution. A future long-running HTTP service must explicitly address concurrent access to token state and any specification cache before sharing a client instance across requests.
+The current `tuya.Gateway` is sufficient for short-lived CLI command execution. A future long-running HTTP service must explicitly address concurrent access to token state and any specification cache before sharing a gateway instance across requests.

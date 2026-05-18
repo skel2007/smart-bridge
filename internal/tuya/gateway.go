@@ -16,51 +16,51 @@ type Credentials struct {
 	ClientSecret string
 }
 
-type Client struct {
+type Gateway struct {
 	api *api
 }
 
-type Option func(*Client)
+type Option func(*Gateway)
 
 func WithHTTPClient(httpClient *http.Client) Option {
-	return func(client *Client) {
+	return func(gateway *Gateway) {
 		if httpClient != nil {
-			client.api.httpClient = httpClient
+			gateway.api.httpClient = httpClient
 		}
 	}
 }
 
 func WithNowFunc(now func() time.Time) Option {
-	return func(client *Client) {
+	return func(gateway *Gateway) {
 		if now != nil {
-			client.api.now = now
+			gateway.api.now = now
 		}
 	}
 }
 
 func WithNonceFunc(nonce func() (string, error)) Option {
-	return func(client *Client) {
+	return func(gateway *Gateway) {
 		if nonce != nil {
-			client.api.nonce = nonce
+			gateway.api.nonce = nonce
 		}
 	}
 }
 
-func NewClient(credentials Credentials, options ...Option) *Client {
-	client := &Client{api: newAPI(credentials)}
+func NewGateway(credentials Credentials, options ...Option) *Gateway {
+	gateway := &Gateway{api: newAPI(credentials)}
 	for _, option := range options {
-		option(client)
+		option(gateway)
 	}
 
-	return client
+	return gateway
 }
 
-func (client *Client) ListDevices(ctx context.Context) ([]devices.Device, error) {
+func (gateway *Gateway) ListDevices(ctx context.Context) ([]devices.Device, error) {
 	var out []devices.Device
 	var lastID string
 
 	for {
-		result, err := client.api.listProjectDevices(ctx, lastID)
+		result, err := gateway.api.listProjectDevices(ctx, lastID)
 		if err != nil {
 			return nil, err
 		}
@@ -84,13 +84,13 @@ func (client *Client) ListDevices(ctx context.Context) ([]devices.Device, error)
 	}
 }
 
-func (client *Client) ListCapabilities(ctx context.Context, deviceID string) ([]devices.Capability, error) {
-	specifications, err := client.api.getDeviceSpecifications(ctx, deviceID)
+func (gateway *Gateway) ListCapabilities(ctx context.Context, deviceID string) ([]devices.Capability, error) {
+	specifications, err := gateway.api.getDeviceSpecifications(ctx, deviceID)
 	if err != nil {
 		return nil, err
 	}
 
-	status, err := client.api.getDeviceStatus(ctx, deviceID)
+	status, err := gateway.api.getDeviceStatus(ctx, deviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,12 +98,12 @@ func (client *Client) ListCapabilities(ctx context.Context, deviceID string) ([]
 	return mapCapabilities(specifications, status), nil
 }
 
-func (client *Client) SendCommands(ctx context.Context, deviceID string, commands []devices.CapabilityCommand) error {
+func (gateway *Gateway) SendCommands(ctx context.Context, deviceID string, commands []devices.CapabilityCommand) error {
 	if len(commands) == 0 {
 		return errors.New("capability commands are required")
 	}
 
-	specifications, err := client.api.getDeviceSpecifications(ctx, deviceID)
+	specifications, err := gateway.api.getDeviceSpecifications(ctx, deviceID)
 	if err != nil {
 		return err
 	}
@@ -118,5 +118,5 @@ func (client *Client) SendCommands(ctx context.Context, deviceID string, command
 		mappedCommands = append(mappedCommands, mappedCommand)
 	}
 
-	return client.api.sendCommands(ctx, deviceID, mappedCommands)
+	return gateway.api.sendCommands(ctx, deviceID, mappedCommands)
 }

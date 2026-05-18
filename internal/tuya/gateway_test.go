@@ -12,12 +12,12 @@ import (
 )
 
 func TestListDevices(t *testing.T) {
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):   tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(devicesURI): tuyaResult(`[{"id":"dev-1","name":"Lamp","customName":"Desk lamp","category":"dj","isOnline":true}]`),
 	})
 
-	deviceList, err := client.ListDevices(context.Background())
+	deviceList, err := gateway.ListDevices(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, []devices.Device{
 		{ID: "dev-1", Name: "Desk lamp", Type: devices.DeviceTypeLight, Online: true},
@@ -27,13 +27,13 @@ func TestListDevices(t *testing.T) {
 
 func TestListDevicesFetchesAllPages(t *testing.T) {
 	nextPageURI := "/v2.0/cloud/thing/device?last_id=dev-20&page_size=20"
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):    tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(devicesURI):  tuyaResult(tuyaDevicesJSON("dev-", 1, 20)),
 		getRoute(nextPageURI): tuyaResult(`[{"id":"dev-21","name":"Device 21","category":"dj","isOnline":true}]`),
 	})
 
-	deviceList, err := client.ListDevices(context.Background())
+	deviceList, err := gateway.ListDevices(context.Background())
 	require.NoError(t, err)
 	require.Len(t, deviceList, 21)
 	require.Equal(t, "dev-1", deviceList[0].ID)
@@ -42,40 +42,40 @@ func TestListDevicesFetchesAllPages(t *testing.T) {
 }
 
 func TestListDevicesReturnsErrorWhenTokenIsMissing(t *testing.T) {
-	client, _ := newTestClient(t, map[testRoute]testResponse{
+	gateway, _ := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI): tuyaResult(`{}`),
 	})
 
-	_, err := client.ListDevices(context.Background())
+	_, err := gateway.ListDevices(context.Background())
 
 	require.EqualError(t, err, "tuya token response missing access_token")
 }
 
 func TestListDevicesReturnsErrorWhenPageCursorIsMissing(t *testing.T) {
-	client, _ := newTestClient(t, map[testRoute]testResponse{
+	gateway, _ := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):   tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(devicesURI): tuyaResult(tuyaDevicesWithMissingLastIDJSON()),
 	})
 
-	_, err := client.ListDevices(context.Background())
+	_, err := gateway.ListDevices(context.Background())
 
 	require.EqualError(t, err, "tuya device list response missing id for pagination")
 }
 
 func TestListDevicesDoesNotExposeSecretsInErrors(t *testing.T) {
-	client, _ := newTestClient(t, map[testRoute]testResponse{
+	gateway, _ := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):   tuyaResult(`{"access_token":"access-secret"}`),
 		getRoute(devicesURI): tuyaError(http.StatusOK, "1106", "permission denied"),
 	})
 
-	_, err := client.ListDevices(context.Background())
+	_, err := gateway.ListDevices(context.Background())
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), "super-secret")
 	require.NotContains(t, err.Error(), "access-secret")
 }
 
 func TestListCapabilities(t *testing.T) {
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(deviceSpecificationsURI): tuyaResult(`{
 			"functions": [
@@ -89,7 +89,7 @@ func TestListCapabilities(t *testing.T) {
 		]`),
 	})
 
-	capabilities, err := client.ListCapabilities(context.Background(), "device-id")
+	capabilities, err := gateway.ListCapabilities(context.Background(), "device-id")
 
 	require.NoError(t, err)
 	require.Equal(t, []devices.Capability{
@@ -106,25 +106,25 @@ func TestListCapabilities(t *testing.T) {
 func TestListCapabilitiesEscapesDeviceID(t *testing.T) {
 	specificationsURI := "/v1.0/devices/device%2Fid%20with%20space/specifications"
 	statusURI := "/v1.0/devices/device%2Fid%20with%20space/status"
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):          tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(specificationsURI): tuyaResult(`{"functions":[]}`),
 		getRoute(statusURI):         tuyaResult(`[]`),
 	})
 
-	_, err := client.ListCapabilities(context.Background(), "device/id with space")
+	_, err := gateway.ListCapabilities(context.Background(), "device/id with space")
 
 	require.NoError(t, err)
 	require.Equal(t, []string{tokenURI, specificationsURI, statusURI}, api.requestURIs())
 }
 
 func TestListCapabilitiesReturnsSpecificationsError(t *testing.T) {
-	client, _ := newTestClient(t, map[testRoute]testResponse{
+	gateway, _ := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):                tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(deviceSpecificationsURI): tuyaError(http.StatusOK, "1106", "permission denied"),
 	})
 
-	_, err := client.ListCapabilities(context.Background(), "device-id")
+	_, err := gateway.ListCapabilities(context.Background(), "device-id")
 
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr)
@@ -132,13 +132,13 @@ func TestListCapabilitiesReturnsSpecificationsError(t *testing.T) {
 }
 
 func TestListCapabilitiesReturnsStatusError(t *testing.T) {
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):                tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(deviceSpecificationsURI): tuyaResult(`{"functions":[]}`),
 		getRoute(deviceStatusURI):         tuyaError(http.StatusOK, "1107", "status denied"),
 	})
 
-	_, err := client.ListCapabilities(context.Background(), "device-id")
+	_, err := gateway.ListCapabilities(context.Background(), "device-id")
 
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr)
@@ -147,7 +147,7 @@ func TestListCapabilitiesReturnsStatusError(t *testing.T) {
 }
 
 func TestSendCommands(t *testing.T) {
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(deviceSpecificationsURI): tuyaResult(`{
 			"functions": [
@@ -158,7 +158,7 @@ func TestSendCommands(t *testing.T) {
 		postRoute(deviceCommandsURI): tuyaResult(`true`),
 	})
 
-	err := client.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
+	err := gateway.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 		devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
 	})
@@ -179,7 +179,7 @@ func TestSendCommands(t *testing.T) {
 func TestSendCommandsEscapesDeviceID(t *testing.T) {
 	specificationsURI := "/v1.0/devices/device%2Fid%20with%20space/specifications"
 	commandsURI := "/v1.0/devices/device%2Fid%20with%20space/commands"
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(specificationsURI): tuyaResult(`{
 			"functions": [
@@ -189,7 +189,7 @@ func TestSendCommandsEscapesDeviceID(t *testing.T) {
 		postRoute(commandsURI): tuyaResult(`true`),
 	})
 
-	err := client.SendCommands(context.Background(), "device/id with space", []devices.CapabilityCommand{
+	err := gateway.SendCommands(context.Background(), "device/id with space", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 	})
 
@@ -198,21 +198,21 @@ func TestSendCommandsEscapesDeviceID(t *testing.T) {
 }
 
 func TestSendCommandsReturnsErrorWhenEmpty(t *testing.T) {
-	client, api := newTestClient(t, map[testRoute]testResponse{})
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{})
 
-	err := client.SendCommands(context.Background(), "device-id", nil)
+	err := gateway.SendCommands(context.Background(), "device-id", nil)
 
 	require.EqualError(t, err, "capability commands are required")
 	require.Empty(t, api.requestURIs())
 }
 
 func TestSendCommandsReturnsMappingError(t *testing.T) {
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI):                tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(deviceSpecificationsURI): tuyaResult(`{"functions":[]}`),
 	})
 
-	err := client.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
+	err := gateway.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 	})
 
@@ -221,7 +221,7 @@ func TestSendCommandsReturnsMappingError(t *testing.T) {
 }
 
 func TestSendCommandsReturnsTuyaError(t *testing.T) {
-	client, api := newTestClient(t, map[testRoute]testResponse{
+	gateway, api := newTestGateway(t, map[testRoute]testResponse{
 		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
 		getRoute(deviceSpecificationsURI): tuyaResult(`{
 			"functions": [
@@ -231,7 +231,7 @@ func TestSendCommandsReturnsTuyaError(t *testing.T) {
 		postRoute(deviceCommandsURI): tuyaError(http.StatusOK, "1108", "command denied"),
 	})
 
-	err := client.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
+	err := gateway.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 	})
 
