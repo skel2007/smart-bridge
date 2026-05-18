@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
 	"github.com/stretchr/testify/require"
 )
 
@@ -11,38 +12,38 @@ func TestMapCapabilityCommand(t *testing.T) {
 	tests := []struct {
 		name          string
 		command       devices.CapabilityCommand
-		specification tuyaDeviceSpecifications
-		want          tuyaCommand
+		specification cloud.DeviceSpecifications
+		want          cloud.Command
 	}{
 		{
 			name:    "power",
 			command: devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{Code: "switch_led"},
 			}},
-			want: tuyaCommand{Code: "switch_led", Value: true},
+			want: cloud.Command{Code: "switch_led", Value: true},
 		},
 		{
 			name:    "brightness",
 			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{
 					Code:   "bright_value_v2",
 					Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`),
 				},
 			}},
-			want: tuyaCommand{Code: "bright_value_v2", Value: 505},
+			want: cloud.Command{Code: "bright_value_v2", Value: 505},
 		},
 		{
 			name:    "color temperature level",
 			command: devices.NewRangeCommand(devices.CapabilityInstanceColorTemperatureLevel, 75),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{
 					Code:   "temp_value_v2",
 					Values: []byte(`"{\"min\":0,\"max\":1000,\"scale\":0,\"step\":1}"`),
 				},
 			}},
-			want: tuyaCommand{Code: "temp_value_v2", Value: 750},
+			want: cloud.Command{Code: "temp_value_v2", Value: 750},
 		},
 		{
 			name: "color",
@@ -51,10 +52,10 @@ func TestMapCapabilityCommand(t *testing.T) {
 				Saturation: 80,
 				Value:      90,
 			}),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{Code: "colour_data_v2"},
 			}},
-			want: tuyaCommand{
+			want: cloud.Command{
 				Code: "colour_data_v2",
 				Value: tuyaHSVValue{
 					Hue:        120,
@@ -70,10 +71,10 @@ func TestMapCapabilityCommand(t *testing.T) {
 				Saturation: 100,
 				Value:      50,
 			}),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{Code: "colour_data"},
 			}},
-			want: tuyaCommand{
+			want: cloud.Command{
 				Code: "colour_data",
 				Value: tuyaHSVValue{
 					Hue:        37,
@@ -85,18 +86,18 @@ func TestMapCapabilityCommand(t *testing.T) {
 		{
 			name:    "mode",
 			command: devices.NewModeCommand(devices.CapabilityInstanceWorkMode, "white"),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{
 					Code:   "work_mode",
 					Values: []byte(`{"range":["white","colour"]}`),
 				},
 			}},
-			want: tuyaCommand{Code: "work_mode", Value: "white"},
+			want: cloud.Command{Code: "work_mode", Value: "white"},
 		},
 		{
 			name:    "prefers v2 range function",
 			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{
 					Code:   "bright_value",
 					Values: []byte(`{"min":0,"max":255,"scale":0,"step":1}`),
@@ -106,7 +107,7 @@ func TestMapCapabilityCommand(t *testing.T) {
 					Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`),
 				},
 			}},
-			want: tuyaCommand{Code: "bright_value_v2", Value: 505},
+			want: cloud.Command{Code: "bright_value_v2", Value: 505},
 		},
 	}
 
@@ -124,25 +125,25 @@ func TestMapCapabilityCommandErrors(t *testing.T) {
 	tests := []struct {
 		name          string
 		command       devices.CapabilityCommand
-		specification tuyaDeviceSpecifications
+		specification cloud.DeviceSpecifications
 		wantErr       string
 	}{
 		{
 			name:          "invalid domain command",
 			command:       devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 101),
-			specification: tuyaDeviceSpecifications{},
+			specification: cloud.DeviceSpecifications{},
 			wantErr:       "range command state must be between 0 and 100: 101",
 		},
 		{
 			name:          "missing tuya function",
 			command:       devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
-			specification: tuyaDeviceSpecifications{},
+			specification: cloud.DeviceSpecifications{},
 			wantErr:       "tuya function not found for capability instance: power",
 		},
 		{
 			name:    "missing range values",
 			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{Code: "bright_value_v2"},
 			}},
 			wantErr: "tuya range values are missing or invalid",
@@ -150,7 +151,7 @@ func TestMapCapabilityCommandErrors(t *testing.T) {
 		{
 			name:    "invalid range values",
 			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{
 					Code:   "bright_value_v2",
 					Values: []byte(`{"min":1000,"max":10,"scale":0,"step":1}`),
@@ -161,7 +162,7 @@ func TestMapCapabilityCommandErrors(t *testing.T) {
 		{
 			name:    "missing mode values",
 			command: devices.NewModeCommand(devices.CapabilityInstanceWorkMode, "white"),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{Code: "work_mode"},
 			}},
 			wantErr: "tuya mode values are missing or invalid",
@@ -169,7 +170,7 @@ func TestMapCapabilityCommandErrors(t *testing.T) {
 		{
 			name:    "unsupported mode",
 			command: devices.NewModeCommand(devices.CapabilityInstanceWorkMode, "scene"),
-			specification: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 				{
 					Code:   "work_mode",
 					Values: []byte(`{"range":["white","colour"]}`),

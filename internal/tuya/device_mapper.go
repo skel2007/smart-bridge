@@ -1,8 +1,11 @@
 package tuya
 
-import "github.com/skel2007/smart-bridge/internal/devices"
+import (
+	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
+)
 
-func mapDevice(device tuyaDevice) devices.Device {
+func mapDevice(device cloud.Device) devices.Device {
 	name := device.Name
 	if device.CustomName != "" {
 		name = device.CustomName

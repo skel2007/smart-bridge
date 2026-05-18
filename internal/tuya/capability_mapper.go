@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
 )
 
-func mapCapabilities(specifications tuyaDeviceSpecifications, status []tuyaDeviceStatus) []devices.Capability {
+func mapCapabilities(specifications cloud.DeviceSpecifications, status []cloud.DeviceStatus) []devices.Capability {
 	statusByCode := make(map[string]json.RawMessage, len(status))
 	for _, item := range status {
 		statusByCode[item.Code] = item.Value
@@ -31,7 +32,7 @@ func mapCapabilities(specifications tuyaDeviceSpecifications, status []tuyaDevic
 	return capabilities
 }
 
-func mapCapability(function tuyaFunctionSpec, state json.RawMessage) (devices.Capability, bool) {
+func mapCapability(function cloud.FunctionSpec, state json.RawMessage) (devices.Capability, bool) {
 	switch function.Code {
 	case "switch", "switch_led":
 		return mapOnOffCapability(state), true

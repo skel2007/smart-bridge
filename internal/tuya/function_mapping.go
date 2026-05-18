@@ -1,6 +1,9 @@
 package tuya
 
-import "github.com/skel2007/smart-bridge/internal/devices"
+import (
+	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
+)
 
 type functionMapping struct {
 	instance devices.CapabilityInstance
@@ -15,13 +18,13 @@ var functionMappings = []functionMapping{
 	{instance: devices.CapabilityInstanceColor, codes: []string{"colour_data_v2", "colour_data"}},
 }
 
-func selectFunctionsByInstance(functions []tuyaFunctionSpec) map[devices.CapabilityInstance]tuyaFunctionSpec {
-	functionByCode := make(map[string]tuyaFunctionSpec, len(functions))
+func selectFunctionsByInstance(functions []cloud.FunctionSpec) map[devices.CapabilityInstance]cloud.FunctionSpec {
+	functionByCode := make(map[string]cloud.FunctionSpec, len(functions))
 	for _, function := range functions {
 		functionByCode[function.Code] = function
 	}
 
-	selected := make(map[devices.CapabilityInstance]tuyaFunctionSpec)
+	selected := make(map[devices.CapabilityInstance]cloud.FunctionSpec)
 	for _, mapping := range functionMappings {
 		for _, code := range mapping.codes {
 			function, ok := functionByCode[code]

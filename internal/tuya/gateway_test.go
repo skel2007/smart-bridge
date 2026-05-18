@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
 	"github.com/stretchr/testify/require"
 )
 
 func TestListDevices(t *testing.T) {
-	api := &recordingTuyaAPI{
-		devices: []tuyaDevice{
+	api := &recordingCloudAPI{
+		devices: []cloud.Device{
 			{ID: "dev-1", Name: "Lamp", CustomName: "Desk lamp", Category: "dj", IsOnline: true},
 		},
 	}
@@ -25,7 +26,7 @@ func TestListDevices(t *testing.T) {
 }
 
 func TestListDevicesReturnsAPIError(t *testing.T) {
-	api := &recordingTuyaAPI{listDevicesErr: errors.New("list devices failed")}
+	api := &recordingCloudAPI{listDevicesErr: errors.New("list devices failed")}
 
 	_, err := newGateway(api).ListDevices(context.Background())
 
@@ -33,9 +34,9 @@ func TestListDevicesReturnsAPIError(t *testing.T) {
 }
 
 func TestListCapabilities(t *testing.T) {
-	api := &recordingTuyaAPI{
+	api := &recordingCloudAPI{
 		specifications: powerAndBrightnessSpecifications(),
-		status: []tuyaDeviceStatus{
+		status: []cloud.DeviceStatus{
 			{Code: "switch_led", Value: []byte(`true`)},
 			{Code: "bright_value_v2", Value: []byte(`1000`)},
 		},
@@ -57,7 +58,7 @@ func TestListCapabilities(t *testing.T) {
 }
 
 func TestListCapabilitiesReturnsSpecificationsError(t *testing.T) {
-	api := &recordingTuyaAPI{specificationsErr: errors.New("specifications failed")}
+	api := &recordingCloudAPI{specificationsErr: errors.New("specifications failed")}
 
 	_, err := newGateway(api).ListCapabilities(context.Background(), "device-id")
 
@@ -66,7 +67,7 @@ func TestListCapabilitiesReturnsSpecificationsError(t *testing.T) {
 }
 
 func TestListCapabilitiesReturnsStatusError(t *testing.T) {
-	api := &recordingTuyaAPI{statusErr: errors.New("status failed")}
+	api := &recordingCloudAPI{statusErr: errors.New("status failed")}
 
 	_, err := newGateway(api).ListCapabilities(context.Background(), "device-id")
 
@@ -74,7 +75,7 @@ func TestListCapabilitiesReturnsStatusError(t *testing.T) {
 }
 
 func TestSendCommands(t *testing.T) {
-	api := &recordingTuyaAPI{
+	api := &recordingCloudAPI{
 		specifications: powerAndBrightnessSpecifications(),
 	}
 
@@ -86,14 +87,14 @@ func TestSendCommands(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "device-id", api.specificationsDevice)
 	require.Equal(t, "device-id", api.commandsDevice)
-	require.Equal(t, []tuyaCommand{
+	require.Equal(t, []cloud.Command{
 		{Code: "switch_led", Value: true},
 		{Code: "bright_value_v2", Value: 505},
 	}, api.sentCommands)
 }
 
 func TestSendCommandsReturnsErrorWhenEmpty(t *testing.T) {
-	api := &recordingTuyaAPI{}
+	api := &recordingCloudAPI{}
 
 	err := newGateway(api).SendCommands(context.Background(), "device-id", nil)
 
@@ -103,7 +104,7 @@ func TestSendCommandsReturnsErrorWhenEmpty(t *testing.T) {
 }
 
 func TestSendCommandsReturnsMappingError(t *testing.T) {
-	api := &recordingTuyaAPI{specifications: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{}}}
+	api := &recordingCloudAPI{specifications: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{}}}
 
 	err := newGateway(api).SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
@@ -115,9 +116,9 @@ func TestSendCommandsReturnsMappingError(t *testing.T) {
 }
 
 func TestSendCommandsReturnsAPIError(t *testing.T) {
-	api := &recordingTuyaAPI{
-		specifications: tuyaDeviceSpecifications{
-			Functions: []tuyaFunctionSpec{
+	api := &recordingCloudAPI{
+		specifications: cloud.DeviceSpecifications{
+			Functions: []cloud.FunctionSpec{
 				{Code: "switch_led", Type: "Boolean", Values: []byte(`{}`)},
 			},
 		},
@@ -131,49 +132,49 @@ func TestSendCommandsReturnsAPIError(t *testing.T) {
 	require.EqualError(t, err, "send commands failed")
 }
 
-func powerAndBrightnessSpecifications() tuyaDeviceSpecifications {
-	return tuyaDeviceSpecifications{
-		Functions: []tuyaFunctionSpec{
+func powerAndBrightnessSpecifications() cloud.DeviceSpecifications {
+	return cloud.DeviceSpecifications{
+		Functions: []cloud.FunctionSpec{
 			{Code: "switch_led", Type: "Boolean", Values: []byte(`{}`)},
 			{Code: "bright_value_v2", Type: "Integer", Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`)},
 		},
 	}
 }
 
-type recordingTuyaAPI struct {
-	devices        []tuyaDevice
+type recordingCloudAPI struct {
+	devices        []cloud.Device
 	listDevicesErr error
 
-	specifications       tuyaDeviceSpecifications
+	specifications       cloud.DeviceSpecifications
 	specificationsErr    error
 	specificationsDevice string
 
-	status       []tuyaDeviceStatus
+	status       []cloud.DeviceStatus
 	statusErr    error
 	statusDevice string
 
 	commandsErr    error
 	commandsDevice string
-	sentCommands   []tuyaCommand
+	sentCommands   []cloud.Command
 }
 
-func (api *recordingTuyaAPI) ListProjectDevices(context.Context) ([]tuyaDevice, error) {
+func (api *recordingCloudAPI) ListProjectDevices(context.Context) ([]cloud.Device, error) {
 	return api.devices, api.listDevicesErr
 }
 
-func (api *recordingTuyaAPI) GetDeviceSpecifications(_ context.Context, deviceID string) (tuyaDeviceSpecifications, error) {
+func (api *recordingCloudAPI) GetDeviceSpecifications(_ context.Context, deviceID string) (cloud.DeviceSpecifications, error) {
 	api.specificationsDevice = deviceID
 
 	return api.specifications, api.specificationsErr
 }
 
-func (api *recordingTuyaAPI) GetDeviceStatus(_ context.Context, deviceID string) ([]tuyaDeviceStatus, error) {
+func (api *recordingCloudAPI) GetDeviceStatus(_ context.Context, deviceID string) ([]cloud.DeviceStatus, error) {
 	api.statusDevice = deviceID
 
 	return api.status, api.statusErr
 }
 
-func (api *recordingTuyaAPI) SendCommands(_ context.Context, deviceID string, commands []tuyaCommand) error {
+func (api *recordingCloudAPI) SendCommands(_ context.Context, deviceID string, commands []cloud.Command) error {
 	api.commandsDevice = deviceID
 	api.sentCommands = commands
 

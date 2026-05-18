@@ -4,40 +4,41 @@ import (
 	"fmt"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
 )
 
-func mapCapabilityCommand(command devices.CapabilityCommand, specifications tuyaDeviceSpecifications) (tuyaCommand, error) {
+func mapCapabilityCommand(command devices.CapabilityCommand, specifications cloud.DeviceSpecifications) (cloud.Command, error) {
 	if err := command.Validate(); err != nil {
-		return tuyaCommand{}, err
+		return cloud.Command{}, err
 	}
 
 	function, ok := findCommandFunction(command.Instance, specifications.Functions)
 	if !ok {
-		return tuyaCommand{}, fmt.Errorf("tuya function not found for capability instance: %s", command.Instance)
+		return cloud.Command{}, fmt.Errorf("tuya function not found for capability instance: %s", command.Instance)
 	}
 
 	value, err := mapCommandValue(command, function)
 	if err != nil {
-		return tuyaCommand{}, err
+		return cloud.Command{}, err
 	}
 
-	return tuyaCommand{
+	return cloud.Command{
 		Code:  function.Code,
 		Value: value,
 	}, nil
 }
 
-func findCommandFunction(instance devices.CapabilityInstance, functions []tuyaFunctionSpec) (tuyaFunctionSpec, bool) {
+func findCommandFunction(instance devices.CapabilityInstance, functions []cloud.FunctionSpec) (cloud.FunctionSpec, bool) {
 	functionsByInstance := selectFunctionsByInstance(functions)
 	function, ok := functionsByInstance[instance]
 	if !ok {
-		return tuyaFunctionSpec{}, false
+		return cloud.FunctionSpec{}, false
 	}
 
 	return function, true
 }
 
-func mapCommandValue(command devices.CapabilityCommand, function tuyaFunctionSpec) (any, error) {
+func mapCommandValue(command devices.CapabilityCommand, function cloud.FunctionSpec) (any, error) {
 	switch command.Instance {
 	case devices.CapabilityInstancePower:
 		return command.OnOff.State, nil

@@ -4,27 +4,28 @@ import (
 	"testing"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
+	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMapCapability(t *testing.T) {
 	tests := []struct {
 		name     string
-		function tuyaFunctionSpec
+		function cloud.FunctionSpec
 		state    []byte
 		want     devices.Capability
 		wantOK   bool
 	}{
 		{
 			name:     "on off",
-			function: tuyaFunctionSpec{Code: "switch_led"},
+			function: cloud.FunctionSpec{Code: "switch_led"},
 			state:    []byte(`true`),
 			want:     devices.NewOnOffCapability(devices.CapabilityInstancePower, true),
 			wantOK:   true,
 		},
 		{
 			name: "brightness",
-			function: tuyaFunctionSpec{
+			function: cloud.FunctionSpec{
 				Code:   "bright_value_v2",
 				Values: []byte(`"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"`),
 			},
@@ -38,7 +39,7 @@ func TestMapCapability(t *testing.T) {
 		},
 		{
 			name: "brightness rounded to precision",
-			function: tuyaFunctionSpec{
+			function: cloud.FunctionSpec{
 				Code:   "bright_value_v2",
 				Values: []byte(`"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"`),
 			},
@@ -52,7 +53,7 @@ func TestMapCapability(t *testing.T) {
 		},
 		{
 			name: "brightness middle",
-			function: tuyaFunctionSpec{
+			function: cloud.FunctionSpec{
 				Code:   "bright_value_v2",
 				Values: []byte(`"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"`),
 			},
@@ -66,7 +67,7 @@ func TestMapCapability(t *testing.T) {
 		},
 		{
 			name: "color temperature level",
-			function: tuyaFunctionSpec{
+			function: cloud.FunctionSpec{
 				Code:   "temp_value_v2",
 				Values: []byte(`"{\"min\":0,\"max\":1000,\"scale\":0,\"step\":1}"`),
 			},
@@ -80,7 +81,7 @@ func TestMapCapability(t *testing.T) {
 		},
 		{
 			name: "range with invalid tuya values",
-			function: tuyaFunctionSpec{
+			function: cloud.FunctionSpec{
 				Code: "bright_value_v2",
 			},
 			state: []byte(`1000`),
@@ -92,7 +93,7 @@ func TestMapCapability(t *testing.T) {
 		},
 		{
 			name:     "color",
-			function: tuyaFunctionSpec{Code: "colour_data_v2"},
+			function: cloud.FunctionSpec{Code: "colour_data_v2"},
 			state:    []byte(`"{\"h\":120,\"s\":800,\"v\":900}"`),
 			want: devices.NewColorCapability(devices.CapabilityInstanceColor, devices.HSVColor{
 				Hue:        120,
@@ -103,7 +104,7 @@ func TestMapCapability(t *testing.T) {
 		},
 		{
 			name: "mode",
-			function: tuyaFunctionSpec{
+			function: cloud.FunctionSpec{
 				Code:   "work_mode",
 				Values: []byte(`{"range":["white","colour"]}`),
 			},
@@ -117,13 +118,13 @@ func TestMapCapability(t *testing.T) {
 		},
 		{
 			name:     "known function without state",
-			function: tuyaFunctionSpec{Code: "switch"},
+			function: cloud.FunctionSpec{Code: "switch"},
 			want:     devices.NewOnOffCapabilityWithoutState(devices.CapabilityInstancePower),
 			wantOK:   true,
 		},
 		{
 			name:     "unknown",
-			function: tuyaFunctionSpec{Code: "unsupported_code"},
+			function: cloud.FunctionSpec{Code: "unsupported_code"},
 			wantOK:   false,
 		},
 	}
@@ -139,7 +140,7 @@ func TestMapCapability(t *testing.T) {
 }
 
 func TestMapCapabilitiesUsesPreferredFunctions(t *testing.T) {
-	specifications := tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{
+	specifications := cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
 		{
 			Code:   "bright_value",
 			Values: []byte(`{"min":0,"max":255,"scale":0,"step":1}`),
@@ -149,7 +150,7 @@ func TestMapCapabilitiesUsesPreferredFunctions(t *testing.T) {
 			Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`),
 		},
 	}}
-	status := []tuyaDeviceStatus{
+	status := []cloud.DeviceStatus{
 		{Code: "bright_value", Value: []byte(`255`)},
 		{Code: "bright_value_v2", Value: []byte(`505`)},
 	}

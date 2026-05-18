@@ -15,14 +15,14 @@ type Credentials struct {
 }
 
 type Gateway struct {
-	api tuyaAPI
+	api cloudAPI
 }
 
-type tuyaAPI interface {
-	ListProjectDevices(ctx context.Context) ([]tuyaDevice, error)
-	GetDeviceSpecifications(ctx context.Context, deviceID string) (tuyaDeviceSpecifications, error)
-	GetDeviceStatus(ctx context.Context, deviceID string) ([]tuyaDeviceStatus, error)
-	SendCommands(ctx context.Context, deviceID string, commands []tuyaCommand) error
+type cloudAPI interface {
+	ListProjectDevices(ctx context.Context) ([]cloud.Device, error)
+	GetDeviceSpecifications(ctx context.Context, deviceID string) (cloud.DeviceSpecifications, error)
+	GetDeviceStatus(ctx context.Context, deviceID string) ([]cloud.DeviceStatus, error)
+	SendCommands(ctx context.Context, deviceID string, commands []cloud.Command) error
 }
 
 func NewGateway(credentials Credentials) *Gateway {
@@ -33,7 +33,7 @@ func NewGateway(credentials Credentials) *Gateway {
 	}))
 }
 
-func newGateway(api tuyaAPI) *Gateway {
+func newGateway(api cloudAPI) *Gateway {
 	return &Gateway{api: api}
 }
 
@@ -75,7 +75,7 @@ func (gateway *Gateway) SendCommands(ctx context.Context, deviceID string, comma
 		return err
 	}
 
-	mappedCommands := make([]tuyaCommand, 0, len(commands))
+	mappedCommands := make([]cloud.Command, 0, len(commands))
 	for _, command := range commands {
 		mappedCommand, err := mapCapabilityCommand(command, specifications)
 		if err != nil {
