@@ -29,7 +29,7 @@ func mapCapabilityCommand(command devices.CapabilityCommand, specifications clou
 }
 
 func findCommandFunction(instance devices.CapabilityInstance, functions []cloud.FunctionSpec) (cloud.FunctionSpec, bool) {
-	functionsByInstance := selectFunctionsByInstance(functions)
+	functionsByInstance := selectCapabilityFunctionsByInstance(functions)
 	function, ok := functionsByInstance[instance]
 	if !ok {
 		return cloud.FunctionSpec{}, false

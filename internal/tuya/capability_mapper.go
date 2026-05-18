@@ -13,9 +13,9 @@ func mapCapabilities(specifications cloud.DeviceSpecifications, status []cloud.D
 		statusByCode[item.Code] = item.Value
 	}
 
-	functionsByInstance := selectFunctionsByInstance(specifications.Functions)
+	functionsByInstance := selectCapabilityFunctionsByInstance(specifications.Functions)
 	capabilities := make([]devices.Capability, 0, len(functionsByInstance))
-	for _, mapping := range functionMappings {
+	for _, mapping := range capabilityFunctionMappings {
 		function, ok := functionsByInstance[mapping.instance]
 		if !ok {
 			continue
