@@ -35,3 +35,33 @@ func TestMapColorTemperatureLevelToKelvin(t *testing.T) {
 		})
 	}
 }
+
+func TestMapKelvinToColorTemperatureLevel(t *testing.T) {
+	tests := []struct {
+		name   string
+		kelvin float64
+		want   float64
+	}{
+		{
+			name:   "minimum",
+			kelvin: 2700,
+			want:   0,
+		},
+		{
+			name:   "middle",
+			kelvin: 4600,
+			want:   50,
+		},
+		{
+			name:   "maximum",
+			kelvin: 6500,
+			want:   100,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, mapKelvinToColorTemperatureLevel(tt.kelvin))
+		})
+	}
+}

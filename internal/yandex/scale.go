@@ -10,3 +10,7 @@ const (
 func mapColorTemperatureLevelToKelvin(level float64) int {
 	return int(devices.ScalePercentToRange(level, colorTemperatureMinK, colorTemperatureMaxK))
 }
+
+func mapKelvinToColorTemperatureLevel(kelvin float64) float64 {
+	return devices.ScaleRangeToPercent(kelvin, colorTemperatureMinK, colorTemperatureMaxK)
+}
