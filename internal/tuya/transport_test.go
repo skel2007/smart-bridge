@@ -11,7 +11,7 @@ import (
 )
 
 func TestDoSignsRequestHeaders(t *testing.T) {
-	gateway, testAPI := newTestGateway(t, map[testRoute]testResponse{
+	api, testAPI := newTestAPI(t, map[testRoute]testResponse{
 		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
 	})
 
@@ -19,7 +19,7 @@ func TestDoSignsRequestHeaders(t *testing.T) {
 	query.Set("grant_type", "1")
 
 	var result tuyaTokenResult
-	err := gateway.api.do(context.Background(), http.MethodGet, tokenPath, query, nil, "", &result)
+	err := api.do(context.Background(), http.MethodGet, tokenPath, query, nil, "", &result)
 
 	require.NoError(t, err)
 	require.Equal(t, "access-token", result.AccessToken)
@@ -35,7 +35,7 @@ func TestDoSignsRequestHeaders(t *testing.T) {
 }
 
 func TestDoSetsAccessTokenHeader(t *testing.T) {
-	gateway, testAPI := newTestGateway(t, map[testRoute]testResponse{
+	api, testAPI := newTestAPI(t, map[testRoute]testResponse{
 		getRoute(devicesURI): tuyaResult(`[]`),
 	})
 
@@ -43,7 +43,7 @@ func TestDoSetsAccessTokenHeader(t *testing.T) {
 	query.Set("page_size", "20")
 
 	var result []tuyaDevice
-	err := gateway.api.do(context.Background(), http.MethodGet, projectDevices, query, nil, "access-token", &result)
+	err := api.do(context.Background(), http.MethodGet, projectDevices, query, nil, "access-token", &result)
 
 	require.NoError(t, err)
 	require.Equal(t, "access-token", testAPI.requests[0].Header.Get("access_token"))

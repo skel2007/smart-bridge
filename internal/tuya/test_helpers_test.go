@@ -39,29 +39,27 @@ func postRoute(uri string) testRoute {
 	return route(http.MethodPost, uri)
 }
 
-func newTestGateway(t *testing.T, routes map[testRoute]testResponse) (*Gateway, *testAPI) {
+func newTestAPI(t *testing.T, routes map[testRoute]testResponse) (*api, *testAPI) {
 	t.Helper()
 
-	api := &testAPI{t: t, routes: routes}
-	api.server = httptest.NewServer(http.HandlerFunc(api.handle))
-	t.Cleanup(api.server.Close)
+	testAPI := &testAPI{t: t, routes: routes}
+	testAPI.server = httptest.NewServer(http.HandlerFunc(testAPI.handle))
+	t.Cleanup(testAPI.server.Close)
 
-	gateway := NewGateway(
-		Credentials{
-			Endpoint:     api.server.URL,
-			ClientID:     "client",
-			ClientSecret: "super-secret",
-		},
-		WithHTTPClient(api.server.Client()),
-		WithNowFunc(func() time.Time {
-			return time.UnixMilli(1700000000000)
-		}),
-		WithNonceFunc(func() (string, error) {
-			return "nonce", nil
-		}),
-	)
+	api := newAPI(Credentials{
+		Endpoint:     testAPI.server.URL,
+		ClientID:     "client",
+		ClientSecret: "super-secret",
+	})
+	api.httpClient = testAPI.server.Client()
+	api.now = func() time.Time {
+		return time.UnixMilli(1700000000000)
+	}
+	api.nonce = func() (string, error) {
+		return "nonce", nil
+	}
 
-	return gateway, api
+	return api, testAPI
 }
 
 type testAPI struct {

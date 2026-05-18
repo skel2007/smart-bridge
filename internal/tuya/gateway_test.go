@@ -2,7 +2,7 @@ package tuya
 
 import (
 	"context"
-	"net/http"
+	"errors"
 	"testing"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
@@ -10,57 +10,38 @@ import (
 )
 
 func TestListDevices(t *testing.T) {
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI):   tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(devicesURI): tuyaResult(`[{"id":"dev-1","name":"Lamp","customName":"Desk lamp","category":"dj","isOnline":true}]`),
-	})
+	api := &recordingTuyaAPI{
+		devices: []tuyaDevice{
+			{ID: "dev-1", Name: "Lamp", CustomName: "Desk lamp", Category: "dj", IsOnline: true},
+		},
+	}
 
-	deviceList, err := gateway.ListDevices(context.Background())
+	deviceList, err := newGateway(api).ListDevices(context.Background())
+
 	require.NoError(t, err)
 	require.Equal(t, []devices.Device{
 		{ID: "dev-1", Name: "Desk lamp", Type: devices.DeviceTypeLight, Online: true},
 	}, deviceList)
-	require.Equal(t, []string{tokenURI, devicesURI}, api.requestURIs())
 }
 
-func TestListDevicesReturnsErrorWhenTokenIsMissing(t *testing.T) {
-	gateway, _ := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI): tuyaResult(`{}`),
-	})
+func TestListDevicesReturnsAPIError(t *testing.T) {
+	api := &recordingTuyaAPI{listDevicesErr: errors.New("list devices failed")}
 
-	_, err := gateway.ListDevices(context.Background())
+	_, err := newGateway(api).ListDevices(context.Background())
 
-	require.EqualError(t, err, "tuya token response missing access_token")
-}
-
-func TestListDevicesDoesNotExposeSecretsInErrors(t *testing.T) {
-	gateway, _ := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI):   tuyaResult(`{"access_token":"access-secret"}`),
-		getRoute(devicesURI): tuyaError(http.StatusOK, "1106", "permission denied"),
-	})
-
-	_, err := gateway.ListDevices(context.Background())
-	require.Error(t, err)
-	require.NotContains(t, err.Error(), "super-secret")
-	require.NotContains(t, err.Error(), "access-secret")
+	require.EqualError(t, err, "list devices failed")
 }
 
 func TestListCapabilities(t *testing.T) {
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(deviceSpecificationsURI): tuyaResult(`{
-			"functions": [
-				{"code":"switch_led","type":"Boolean","values":"{}"},
-				{"code":"bright_value_v2","type":"Integer","values":"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"}
-			]
-		}`),
-		getRoute(deviceStatusURI): tuyaResult(`[
-			{"code":"switch_led","value":true},
-			{"code":"bright_value_v2","value":1000}
-		]`),
-	})
+	api := &recordingTuyaAPI{
+		specifications: powerAndBrightnessSpecifications(),
+		status: []tuyaDeviceStatus{
+			{Code: "switch_led", Value: []byte(`true`)},
+			{Code: "bright_value_v2", Value: []byte(`1000`)},
+		},
+	}
 
-	capabilities, err := gateway.ListCapabilities(context.Background(), "device-id")
+	capabilities, err := newGateway(api).ListCapabilities(context.Background(), "device-id")
 
 	require.NoError(t, err)
 	require.Equal(t, []devices.Capability{
@@ -71,143 +52,130 @@ func TestListCapabilities(t *testing.T) {
 			devices.RangeParameters{Min: 0, Max: 100, Precision: 1},
 		),
 	}, capabilities)
-	require.Equal(t, []string{tokenURI, deviceSpecificationsURI, deviceStatusURI}, api.requestURIs())
-}
-
-func TestListCapabilitiesEscapesDeviceID(t *testing.T) {
-	specificationsURI := "/v1.0/devices/device%2Fid%20with%20space/specifications"
-	statusURI := "/v1.0/devices/device%2Fid%20with%20space/status"
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI):          tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(specificationsURI): tuyaResult(`{"functions":[]}`),
-		getRoute(statusURI):         tuyaResult(`[]`),
-	})
-
-	_, err := gateway.ListCapabilities(context.Background(), "device/id with space")
-
-	require.NoError(t, err)
-	require.Equal(t, []string{tokenURI, specificationsURI, statusURI}, api.requestURIs())
+	require.Equal(t, "device-id", api.specificationsDevice)
+	require.Equal(t, "device-id", api.statusDevice)
 }
 
 func TestListCapabilitiesReturnsSpecificationsError(t *testing.T) {
-	gateway, _ := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI):                tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(deviceSpecificationsURI): tuyaError(http.StatusOK, "1106", "permission denied"),
-	})
+	api := &recordingTuyaAPI{specificationsErr: errors.New("specifications failed")}
 
-	_, err := gateway.ListCapabilities(context.Background(), "device-id")
+	_, err := newGateway(api).ListCapabilities(context.Background(), "device-id")
 
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr)
-	require.Equal(t, "1106", apiErr.Code)
+	require.EqualError(t, err, "specifications failed")
+	require.Empty(t, api.statusDevice)
 }
 
 func TestListCapabilitiesReturnsStatusError(t *testing.T) {
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI):                tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(deviceSpecificationsURI): tuyaResult(`{"functions":[]}`),
-		getRoute(deviceStatusURI):         tuyaError(http.StatusOK, "1107", "status denied"),
-	})
+	api := &recordingTuyaAPI{statusErr: errors.New("status failed")}
 
-	_, err := gateway.ListCapabilities(context.Background(), "device-id")
+	_, err := newGateway(api).ListCapabilities(context.Background(), "device-id")
 
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr)
-	require.Equal(t, "1107", apiErr.Code)
-	require.Equal(t, []string{tokenURI, deviceSpecificationsURI, deviceStatusURI}, api.requestURIs())
+	require.EqualError(t, err, "status failed")
 }
 
 func TestSendCommands(t *testing.T) {
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(deviceSpecificationsURI): tuyaResult(`{
-			"functions": [
-				{"code":"switch_led","type":"Boolean","values":"{}"},
-				{"code":"bright_value_v2","type":"Integer","values":"{\"min\":10,\"max\":1000,\"scale\":0,\"step\":1}"}
-			]
-		}`),
-		postRoute(deviceCommandsURI): tuyaResult(`true`),
-	})
+	api := &recordingTuyaAPI{
+		specifications: powerAndBrightnessSpecifications(),
+	}
 
-	err := gateway.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
+	err := newGateway(api).SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 		devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, []string{tokenURI, deviceSpecificationsURI, deviceCommandsURI}, api.requestURIs())
-	require.Equal(t, http.MethodPost, api.requests[2].Method)
-	require.Equal(t, "application/json", api.requests[2].Header.Get("Content-Type"))
-	require.Equal(t, "access-token", api.requests[2].Header.Get("access_token"))
-	require.JSONEq(t, `{
-		"commands": [
-			{"code": "switch_led", "value": true},
-			{"code": "bright_value_v2", "value": 505}
-		]
-	}`, api.bodies[2])
-}
-
-func TestSendCommandsEscapesDeviceID(t *testing.T) {
-	specificationsURI := "/v1.0/devices/device%2Fid%20with%20space/specifications"
-	commandsURI := "/v1.0/devices/device%2Fid%20with%20space/commands"
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(specificationsURI): tuyaResult(`{
-			"functions": [
-				{"code":"switch_led","type":"Boolean","values":"{}"}
-			]
-		}`),
-		postRoute(commandsURI): tuyaResult(`true`),
-	})
-
-	err := gateway.SendCommands(context.Background(), "device/id with space", []devices.CapabilityCommand{
-		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
-	})
-
-	require.NoError(t, err)
-	require.Equal(t, []string{tokenURI, specificationsURI, commandsURI}, api.requestURIs())
+	require.Equal(t, "device-id", api.specificationsDevice)
+	require.Equal(t, "device-id", api.commandsDevice)
+	require.Equal(t, []tuyaCommand{
+		{Code: "switch_led", Value: true},
+		{Code: "bright_value_v2", Value: 505},
+	}, api.sentCommands)
 }
 
 func TestSendCommandsReturnsErrorWhenEmpty(t *testing.T) {
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{})
+	api := &recordingTuyaAPI{}
 
-	err := gateway.SendCommands(context.Background(), "device-id", nil)
+	err := newGateway(api).SendCommands(context.Background(), "device-id", nil)
 
 	require.EqualError(t, err, "capability commands are required")
-	require.Empty(t, api.requestURIs())
+	require.Empty(t, api.specificationsDevice)
+	require.Empty(t, api.commandsDevice)
 }
 
 func TestSendCommandsReturnsMappingError(t *testing.T) {
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI):                tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(deviceSpecificationsURI): tuyaResult(`{"functions":[]}`),
-	})
+	api := &recordingTuyaAPI{specifications: tuyaDeviceSpecifications{Functions: []tuyaFunctionSpec{}}}
 
-	err := gateway.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
+	err := newGateway(api).SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 	})
 
 	require.EqualError(t, err, "tuya function not found for capability instance: power")
-	require.Equal(t, []string{tokenURI, deviceSpecificationsURI}, api.requestURIs())
+	require.Equal(t, "device-id", api.specificationsDevice)
+	require.Empty(t, api.commandsDevice)
 }
 
-func TestSendCommandsReturnsTuyaError(t *testing.T) {
-	gateway, api := newTestGateway(t, map[testRoute]testResponse{
-		getRoute(tokenURI): tuyaResult(`{"access_token":"access-token"}`),
-		getRoute(deviceSpecificationsURI): tuyaResult(`{
-			"functions": [
-				{"code":"switch_led","type":"Boolean","values":"{}"}
-			]
-		}`),
-		postRoute(deviceCommandsURI): tuyaError(http.StatusOK, "1108", "command denied"),
-	})
+func TestSendCommandsReturnsAPIError(t *testing.T) {
+	api := &recordingTuyaAPI{
+		specifications: tuyaDeviceSpecifications{
+			Functions: []tuyaFunctionSpec{
+				{Code: "switch_led", Type: "Boolean", Values: []byte(`{}`)},
+			},
+		},
+		commandsErr: errors.New("send commands failed"),
+	}
 
-	err := gateway.SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
+	err := newGateway(api).SendCommands(context.Background(), "device-id", []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 	})
 
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr)
-	require.Equal(t, "1108", apiErr.Code)
-	require.Equal(t, []string{tokenURI, deviceSpecificationsURI, deviceCommandsURI}, api.requestURIs())
+	require.EqualError(t, err, "send commands failed")
+}
+
+func powerAndBrightnessSpecifications() tuyaDeviceSpecifications {
+	return tuyaDeviceSpecifications{
+		Functions: []tuyaFunctionSpec{
+			{Code: "switch_led", Type: "Boolean", Values: []byte(`{}`)},
+			{Code: "bright_value_v2", Type: "Integer", Values: []byte(`{"min":10,"max":1000,"scale":0,"step":1}`)},
+		},
+	}
+}
+
+type recordingTuyaAPI struct {
+	devices        []tuyaDevice
+	listDevicesErr error
+
+	specifications       tuyaDeviceSpecifications
+	specificationsErr    error
+	specificationsDevice string
+
+	status       []tuyaDeviceStatus
+	statusErr    error
+	statusDevice string
+
+	commandsErr    error
+	commandsDevice string
+	sentCommands   []tuyaCommand
+}
+
+func (api *recordingTuyaAPI) listProjectDevices(context.Context) ([]tuyaDevice, error) {
+	return api.devices, api.listDevicesErr
+}
+
+func (api *recordingTuyaAPI) getDeviceSpecifications(_ context.Context, deviceID string) (tuyaDeviceSpecifications, error) {
+	api.specificationsDevice = deviceID
+
+	return api.specifications, api.specificationsErr
+}
+
+func (api *recordingTuyaAPI) getDeviceStatus(_ context.Context, deviceID string) ([]tuyaDeviceStatus, error) {
+	api.statusDevice = deviceID
+
+	return api.status, api.statusErr
+}
+
+func (api *recordingTuyaAPI) sendCommands(_ context.Context, deviceID string, commands []tuyaCommand) error {
+	api.commandsDevice = deviceID
+	api.sentCommands = commands
+
+	return api.commandsErr
 }

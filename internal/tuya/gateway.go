@@ -3,8 +3,6 @@ package tuya
 import (
 	"context"
 	"errors"
-	"net/http"
-	"time"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
@@ -16,42 +14,22 @@ type Credentials struct {
 }
 
 type Gateway struct {
-	api *api
+	api tuyaAPI
 }
 
-type Option func(*Gateway)
-
-func WithHTTPClient(httpClient *http.Client) Option {
-	return func(gateway *Gateway) {
-		if httpClient != nil {
-			gateway.api.httpClient = httpClient
-		}
-	}
+type tuyaAPI interface {
+	listProjectDevices(ctx context.Context) ([]tuyaDevice, error)
+	getDeviceSpecifications(ctx context.Context, deviceID string) (tuyaDeviceSpecifications, error)
+	getDeviceStatus(ctx context.Context, deviceID string) ([]tuyaDeviceStatus, error)
+	sendCommands(ctx context.Context, deviceID string, commands []tuyaCommand) error
 }
 
-func WithNowFunc(now func() time.Time) Option {
-	return func(gateway *Gateway) {
-		if now != nil {
-			gateway.api.now = now
-		}
-	}
+func NewGateway(credentials Credentials) *Gateway {
+	return newGateway(newAPI(credentials))
 }
 
-func WithNonceFunc(nonce func() (string, error)) Option {
-	return func(gateway *Gateway) {
-		if nonce != nil {
-			gateway.api.nonce = nonce
-		}
-	}
-}
-
-func NewGateway(credentials Credentials, options ...Option) *Gateway {
-	gateway := &Gateway{api: newAPI(credentials)}
-	for _, option := range options {
-		option(gateway)
-	}
-
-	return gateway
+func newGateway(api tuyaAPI) *Gateway {
+	return &Gateway{api: api}
 }
 
 func (gateway *Gateway) ListDevices(ctx context.Context) ([]devices.Device, error) {
