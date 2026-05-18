@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Tuya includes the SHA-256 of an empty body in string-to-sign for bodyless requests.
 const emptyContentSHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 func signRequest(secret, clientID, accessToken, timestamp, nonce, method, canonicalURL string, body []byte) string {

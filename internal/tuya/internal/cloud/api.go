@@ -66,6 +66,7 @@ func NewAPI(credentials Credentials) *API {
 	api.transport.HTTPClient.Timeout = defaultHTTPTimeout
 	api.transport.Logger = nil
 	api.transport.ErrorHandler = retryablehttp.PassthroughErrorHandler
+	// Tuya signs the timestamp and nonce, so every retry attempt needs a fresh signature.
 	api.transport.PrepareRetry = api.signRequest
 
 	return api

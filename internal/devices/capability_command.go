@@ -8,6 +8,7 @@ import (
 type CapabilityCommand struct {
 	Instance CapabilityInstance `json:"instance"`
 
+	// Tagged variant payloads keep JSON flat; Validate enforces one payload matching Instance.
 	OnOff *OnOffCommand `json:"on_off,omitempty"`
 	Range *RangeCommand `json:"range,omitempty"`
 	Color *ColorCommand `json:"color,omitempty"`

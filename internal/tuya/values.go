@@ -7,6 +7,7 @@ func decodeTuyaValues(raw json.RawMessage, out any) bool {
 		return true
 	}
 
+	// Tuya returns specification "values" both as JSON objects and as JSON-encoded strings.
 	var text string
 	if !decodeRawJSON(raw, &text) || text == "" {
 		return false

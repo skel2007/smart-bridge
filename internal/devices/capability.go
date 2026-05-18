@@ -4,6 +4,7 @@ type Capability struct {
 	Type     CapabilityType     `json:"type"`
 	Instance CapabilityInstance `json:"instance"`
 
+	// Tagged variant payloads keep JSON flat without introducing a nested wrapper object.
 	OnOff *OnOffCapability `json:"on_off,omitempty"`
 	Range *RangeCapability `json:"range,omitempty"`
 	Color *ColorCapability `json:"color,omitempty"`
