@@ -1,26 +1,17 @@
 package tuya
 
-import "math"
+import (
+	"math"
 
-const (
-	domainPercentMin = 0
-	domainPercentMax = 100
+	"github.com/skel2007/smart-bridge/internal/devices"
 )
 
 func scaleTuyaRangePercent(value float64, minValue float64, maxValue float64) float64 {
-	if maxValue <= minValue {
-		return value
-	}
-
-	return scaleRange(value, minValue, maxValue, domainPercentMin, domainPercentMax)
+	return devices.ScaleRangeToPercent(value, minValue, maxValue)
 }
 
 func scaleDomainPercentToTuyaRange(value float64, minValue float64, maxValue float64) float64 {
-	if maxValue <= minValue {
-		return value
-	}
-
-	return scaleRange(value, domainPercentMin, domainPercentMax, minValue, maxValue)
+	return devices.ScalePercentToRange(value, minValue, maxValue)
 }
 
 func scaleTuyaColorPercent(value float64, maxValue float64) float64 {
@@ -28,7 +19,7 @@ func scaleTuyaColorPercent(value float64, maxValue float64) float64 {
 		return value
 	}
 
-	return scaleRange(value, 0, maxValue, domainPercentMin, domainPercentMax)
+	return devices.ScaleRangeToPercent(value, 0, maxValue)
 }
 
 func scaleDomainPercentToTuyaColor(value float64, maxValue float64) float64 {
@@ -36,15 +27,7 @@ func scaleDomainPercentToTuyaColor(value float64, maxValue float64) float64 {
 		return value
 	}
 
-	return math.Round(scaleRange(value, domainPercentMin, domainPercentMax, 0, maxValue))
-}
-
-func scaleRange(value float64, inputMin float64, inputMax float64, outputMin float64, outputMax float64) float64 {
-	if inputMax <= inputMin {
-		return value
-	}
-
-	return outputMin + (value-inputMin)/(inputMax-inputMin)*(outputMax-outputMin)
+	return math.Round(devices.ScalePercentToRange(value, 0, maxValue))
 }
 
 func roundToPrecision(value float64, precision float64) float64 {

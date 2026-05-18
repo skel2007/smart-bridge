@@ -117,8 +117,8 @@ func (command CapabilityCommand) capabilityType() (CapabilityType, int) {
 }
 
 func validateRangeCommand(command *RangeCommand) error {
-	if command.State < 0 || command.State > 100 {
-		return fmt.Errorf("range command state must be between 0 and 100: %v", command.State)
+	if command.State < PercentMin || command.State > PercentMax {
+		return fmt.Errorf("range command state must be between %d and %d: %v", PercentMin, PercentMax, command.State)
 	}
 
 	return nil
@@ -128,11 +128,11 @@ func validateColorCommand(command *ColorCommand) error {
 	if command.State.Hue < 0 || command.State.Hue > 360 {
 		return fmt.Errorf("color command hue must be between 0 and 360: %v", command.State.Hue)
 	}
-	if command.State.Saturation < 0 || command.State.Saturation > 100 {
-		return fmt.Errorf("color command saturation must be between 0 and 100: %v", command.State.Saturation)
+	if command.State.Saturation < PercentMin || command.State.Saturation > PercentMax {
+		return fmt.Errorf("color command saturation must be between %d and %d: %v", PercentMin, PercentMax, command.State.Saturation)
 	}
-	if command.State.Value < 0 || command.State.Value > 100 {
-		return fmt.Errorf("color command value must be between 0 and 100: %v", command.State.Value)
+	if command.State.Value < PercentMin || command.State.Value > PercentMax {
+		return fmt.Errorf("color command value must be between %d and %d: %v", PercentMin, PercentMax, command.State.Value)
 	}
 
 	return nil
