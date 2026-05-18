@@ -3,7 +3,6 @@ package tuya
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -56,32 +55,17 @@ func NewGateway(credentials Credentials, options ...Option) *Gateway {
 }
 
 func (gateway *Gateway) ListDevices(ctx context.Context) ([]devices.Device, error) {
-	var out []devices.Device
-	var lastID string
-
-	for {
-		result, err := gateway.api.listProjectDevices(ctx, lastID)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(result) == 0 {
-			return out, nil
-		}
-
-		for _, device := range result {
-			out = append(out, mapDevice(device))
-		}
-
-		if len(result) < listPageSize {
-			return out, nil
-		}
-
-		lastID = result[len(result)-1].ID
-		if lastID == "" {
-			return nil, fmt.Errorf("tuya device list response missing id for pagination")
-		}
+	result, err := gateway.api.listProjectDevices(ctx)
+	if err != nil {
+		return nil, err
 	}
+
+	out := make([]devices.Device, 0, len(result))
+	for _, device := range result {
+		out = append(out, mapDevice(device))
+	}
+
+	return out, nil
 }
 
 func (gateway *Gateway) ListCapabilities(ctx context.Context, deviceID string) ([]devices.Capability, error) {

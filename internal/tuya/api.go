@@ -43,7 +43,34 @@ func newAPI(credentials Credentials) *api {
 	}
 }
 
-func (api *api) listProjectDevices(ctx context.Context, lastID string) ([]tuyaDevice, error) {
+func (api *api) listProjectDevices(ctx context.Context) ([]tuyaDevice, error) {
+	var out []tuyaDevice
+	var lastID string
+
+	for {
+		result, err := api.listProjectDevicesPage(ctx, lastID)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(result) == 0 {
+			return out, nil
+		}
+
+		out = append(out, result...)
+
+		if len(result) < listPageSize {
+			return out, nil
+		}
+
+		lastID = result[len(result)-1].ID
+		if lastID == "" {
+			return nil, fmt.Errorf("tuya device list response missing id for pagination")
+		}
+	}
+}
+
+func (api *api) listProjectDevicesPage(ctx context.Context, lastID string) ([]tuyaDevice, error) {
 	if err := api.ensureAccessToken(ctx); err != nil {
 		return nil, err
 	}
