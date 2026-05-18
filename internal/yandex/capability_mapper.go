@@ -7,11 +7,6 @@ import (
 )
 
 const (
-	deviceTypeLight  = "devices.types.light"
-	deviceTypeSocket = "devices.types.socket"
-	deviceTypeSwitch = "devices.types.switch"
-	deviceTypeOther  = "devices.types.other"
-
 	capabilityTypeOnOff        = "devices.capabilities.on_off"
 	capabilityTypeRange        = "devices.capabilities.range"
 	capabilityTypeColorSetting = "devices.capabilities.color_setting"
@@ -23,23 +18,6 @@ const (
 
 	unitPercent = "unit.percent"
 )
-
-func MapDeviceDescription(device devices.Device, capabilities []devices.Capability) DeviceDescription {
-	return DeviceDescription{
-		ID:           device.ID,
-		Name:         device.Name,
-		StatusInfo:   StatusInfo{Reportable: false},
-		Type:         mapDeviceType(device.Type),
-		Capabilities: MapCapabilityDescriptions(capabilities),
-	}
-}
-
-func MapDeviceState(deviceID string, capabilities []devices.Capability) DeviceState {
-	return DeviceState{
-		ID:           deviceID,
-		Capabilities: MapCapabilityStates(capabilities),
-	}
-}
 
 func MapCapabilityDescriptions(capabilities []devices.Capability) []CapabilityDescription {
 	descriptions := make([]CapabilityDescription, 0, len(capabilities))
@@ -139,19 +117,6 @@ func MapCapabilityStates(capabilities []devices.Capability) []CapabilityState {
 	}
 
 	return states
-}
-
-func mapDeviceType(deviceType devices.DeviceType) string {
-	switch deviceType {
-	case devices.DeviceTypeLight:
-		return deviceTypeLight
-	case devices.DeviceTypeSocket:
-		return deviceTypeSocket
-	case devices.DeviceTypeSwitch:
-		return deviceTypeSwitch
-	default:
-		return deviceTypeOther
-	}
 }
 
 func mapRange(capability *devices.RangeCapability) *ValueRange {
