@@ -15,7 +15,7 @@ import (
 
 func TestDoSignsRequestHeaders(t *testing.T) {
 	api, recorder := newTestAPI(t,
-		get(tokenURI, tuyaResult(`{"access_token":"access-token"}`)),
+		get(tokenURI, tuyaToken("access-token", "refresh-token", 7200)),
 	)
 
 	query := url.Values{}
@@ -41,7 +41,7 @@ func TestDoRetriesRetryableHTTPStatusWithFreshSignature(t *testing.T) {
 	api, recorder := newTestAPI(t,
 		get(tokenURI,
 			retryableTuyaError(http.StatusServiceUnavailable, "SYSTEM_ERROR", "try later"),
-			tuyaResult(`{"access_token":"access-token"}`),
+			tuyaToken("access-token", "refresh-token", 7200),
 		),
 	)
 	nonce := 0

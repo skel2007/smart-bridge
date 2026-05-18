@@ -5,7 +5,9 @@ import (
 )
 
 type tokenResult struct {
-	AccessToken string `json:"access_token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpireTime   int64  `json:"expire_time"`
 }
 
 type Device struct {

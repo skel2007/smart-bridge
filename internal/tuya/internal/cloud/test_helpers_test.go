@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 const (
 	tokenURI          = "/v1.0/token?grant_type=1"
+	refreshTokenURI   = "/v1.0/token/refresh-token"
 	devicesURI        = "/v2.0/cloud/thing/device?page_size=20"
 	deviceCommandsURI = "/v1.0/devices/device-id/commands"
 )
@@ -144,6 +146,10 @@ func (recorder *requestRecorder) requestCount() int {
 
 func tuyaResult(result string) testResponse {
 	return jsonResponse(http.StatusOK, `{"success":true,"result":`+result+`}`)
+}
+
+func tuyaToken(accessToken, refreshToken string, expireTime int64) testResponse {
+	return tuyaResult(`{"access_token":"` + accessToken + `","refresh_token":"` + refreshToken + `","expire_time":` + strconv.FormatInt(expireTime, 10) + `}`)
 }
 
 func tuyaError(statusCode int, code, message string) testResponse {

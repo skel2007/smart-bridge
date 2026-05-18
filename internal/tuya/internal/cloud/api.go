@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -17,6 +18,7 @@ import (
 
 const (
 	tokenPath                = "/v1.0/token"
+	refreshTokenPath         = "/v1.0/token/%s"
 	projectDevices           = "/v2.0/cloud/thing/device"
 	deviceSpecificationsPath = "/v1.0/devices/%s/specifications"
 	deviceStatusPath         = "/v1.0/devices/%s/status"
@@ -25,6 +27,7 @@ const (
 )
 
 const defaultHTTPTimeout = 10 * time.Second
+const tokenRefreshMargin = time.Minute
 
 type Credentials struct {
 	Endpoint     string
@@ -37,7 +40,18 @@ type API struct {
 	transport   *retryablehttp.Client
 	now         func() time.Time
 	nonce       func() (string, error)
-	accessToken string
+	tokenMu     sync.Mutex
+	token       tokenState
+}
+
+type tokenState struct {
+	accessToken  string
+	refreshToken string
+	expiresAt    time.Time
+}
+
+func (token tokenState) valid(now time.Time) bool {
+	return token.accessToken != "" && now.Add(tokenRefreshMargin).Before(token.expiresAt)
 }
 
 func NewAPI(credentials Credentials) *API {
@@ -85,7 +99,8 @@ func (api *API) ListProjectDevices(ctx context.Context) ([]Device, error) {
 }
 
 func (api *API) listProjectDevicesPage(ctx context.Context, lastID string) ([]Device, error) {
-	if err := api.ensureAccessToken(ctx); err != nil {
+	accessToken, err := api.ensureAccessToken(ctx)
+	if err != nil {
 		return nil, err
 	}
 
@@ -96,7 +111,7 @@ func (api *API) listProjectDevicesPage(ctx context.Context, lastID string) ([]De
 	}
 
 	var result []Device
-	if err := api.do(ctx, http.MethodGet, projectDevices, query, nil, api.accessToken, &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, projectDevices, query, nil, accessToken, &result); err != nil {
 		return nil, err
 	}
 
@@ -104,14 +119,15 @@ func (api *API) listProjectDevicesPage(ctx context.Context, lastID string) ([]De
 }
 
 func (api *API) GetDeviceSpecifications(ctx context.Context, deviceID string) (DeviceSpecifications, error) {
-	if err := api.ensureAccessToken(ctx); err != nil {
+	accessToken, err := api.ensureAccessToken(ctx)
+	if err != nil {
 		return DeviceSpecifications{}, err
 	}
 
 	path := fmt.Sprintf(deviceSpecificationsPath, url.PathEscape(deviceID))
 
 	var result DeviceSpecifications
-	if err := api.do(ctx, http.MethodGet, path, nil, nil, api.accessToken, &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, path, nil, nil, accessToken, &result); err != nil {
 		return DeviceSpecifications{}, err
 	}
 
@@ -119,14 +135,15 @@ func (api *API) GetDeviceSpecifications(ctx context.Context, deviceID string) (D
 }
 
 func (api *API) GetDeviceStatus(ctx context.Context, deviceID string) ([]DeviceStatus, error) {
-	if err := api.ensureAccessToken(ctx); err != nil {
+	accessToken, err := api.ensureAccessToken(ctx)
+	if err != nil {
 		return nil, err
 	}
 
 	path := fmt.Sprintf(deviceStatusPath, url.PathEscape(deviceID))
 
 	var result []DeviceStatus
-	if err := api.do(ctx, http.MethodGet, path, nil, nil, api.accessToken, &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, path, nil, nil, accessToken, &result); err != nil {
 		return nil, err
 	}
 
@@ -134,7 +151,8 @@ func (api *API) GetDeviceStatus(ctx context.Context, deviceID string) ([]DeviceS
 }
 
 func (api *API) SendCommands(ctx context.Context, deviceID string, commands []Command) error {
-	if err := api.ensureAccessToken(ctx); err != nil {
+	accessToken, err := api.ensureAccessToken(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -145,14 +163,35 @@ func (api *API) SendCommands(ctx context.Context, deviceID string, commands []Co
 
 	path := fmt.Sprintf(deviceCommandsPath, url.PathEscape(deviceID))
 
-	return api.do(ctx, http.MethodPost, path, nil, body, api.accessToken, nil)
+	return api.do(ctx, http.MethodPost, path, nil, body, accessToken, nil)
 }
 
-func (api *API) ensureAccessToken(ctx context.Context) error {
-	if api.accessToken != "" {
-		return nil
+func (api *API) ensureAccessToken(ctx context.Context) (string, error) {
+	api.tokenMu.Lock()
+	defer api.tokenMu.Unlock()
+
+	now := api.now()
+	if api.token.valid(now) {
+		return api.token.accessToken, nil
 	}
 
+	if api.token.refreshToken != "" {
+		// If refresh fails but the context is still active, fall back to a fresh token request below.
+		if err := api.refreshAccessToken(ctx, now); err == nil {
+			return api.token.accessToken, nil
+		} else if ctx.Err() != nil {
+			return "", err
+		}
+	}
+
+	if err := api.requestAccessToken(ctx, now); err != nil {
+		return "", err
+	}
+
+	return api.token.accessToken, nil
+}
+
+func (api *API) requestAccessToken(ctx context.Context, now time.Time) error {
 	query := url.Values{}
 	query.Set("grant_type", "1")
 
@@ -160,11 +199,34 @@ func (api *API) ensureAccessToken(ctx context.Context) error {
 	if err := api.do(ctx, http.MethodGet, tokenPath, query, nil, "", &result); err != nil {
 		return err
 	}
+
+	return api.storeToken(result, now)
+}
+
+func (api *API) refreshAccessToken(ctx context.Context, now time.Time) error {
+	path := fmt.Sprintf(refreshTokenPath, url.PathEscape(api.token.refreshToken))
+
+	var result tokenResult
+	if err := api.do(ctx, http.MethodGet, path, nil, nil, "", &result); err != nil {
+		return err
+	}
+
+	return api.storeToken(result, now)
+}
+
+func (api *API) storeToken(result tokenResult, now time.Time) error {
 	if result.AccessToken == "" {
 		return fmt.Errorf("tuya token response missing access_token")
 	}
+	if result.ExpireTime <= 0 {
+		return fmt.Errorf("tuya token response missing expire_time")
+	}
 
-	api.accessToken = result.AccessToken
+	api.token = tokenState{
+		accessToken:  result.AccessToken,
+		refreshToken: result.RefreshToken,
+		expiresAt:    now.Add(time.Duration(result.ExpireTime) * time.Second),
+	}
 
 	return nil
 }
