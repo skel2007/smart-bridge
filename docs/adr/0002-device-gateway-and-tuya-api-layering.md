@@ -34,7 +34,7 @@ CLI and the future Yandex Smart Home API layer can depend on `devices.DeviceGate
 
 The domain model stays free of Tuya-specific metadata. Tuya specifications and any future cache remain inside the Tuya adapter, consistent with ADR 0001.
 
-The low-level Tuya API layer remains an implementation detail. `httptest`-based tests exercise real request paths, URLs, request bodies, signing headers, and response envelopes inside `internal/tuya/internal/cloud`. Gateway tests use a fake `cloudAPI`.
+The low-level Tuya API layer remains an implementation detail. Transport-level tests exercise request paths, URLs, request bodies, signing headers, retries, and response envelopes inside `internal/tuya/internal/cloud`. Gateway tests use a fake `cloudAPI`.
 
 The split adds one internal layer, but it localizes future changes: retries, token refresh behavior, and Tuya endpoint DTO changes belong near `api`, while capability mapping and specification caching belong near `tuya.Gateway`.
 

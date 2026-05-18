@@ -9,36 +9,29 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/hashicorp/go-retryablehttp"
 )
 
 func (api *API) do(ctx context.Context, method, path string, query url.Values, body []byte, accessToken string, out any) error {
 	canonical := canonicalURL(path, query)
-	requestURL := api.endpoint + canonical
+	requestURL := api.credentials.Endpoint + canonical
 
-	req, err := http.NewRequestWithContext(ctx, method, requestURL, bytes.NewReader(body))
+	req, err := retryablehttp.NewRequestWithContext(ctx, method, requestURL, body)
 	if err != nil {
 		return fmt.Errorf("create tuya request: %w", err)
 	}
-
-	nonce, err := api.nonce()
-	if err != nil {
-		return fmt.Errorf("create tuya request nonce: %w", err)
-	}
-
-	timestamp := strconv.FormatInt(api.now().UnixMilli(), 10)
-	req.Header.Set("client_id", api.clientID)
-	req.Header.Set("sign_method", "HMAC-SHA256")
-	req.Header.Set("t", timestamp)
-	req.Header.Set("nonce", nonce)
-	req.Header.Set("sign", signRequest(api.clientSecret, api.clientID, accessToken, timestamp, nonce, method, canonical, body))
 	if accessToken != "" {
 		req.Header.Set("access_token", accessToken)
 	}
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if err := api.signRequest(req.Request); err != nil {
+		return err
+	}
 
-	resp, err := api.httpClient.Do(req)
+	resp, err := api.transport.Do(req)
 	if err != nil {
 		return fmt.Errorf("call tuya api: %w", err)
 	}
@@ -53,6 +46,53 @@ func (api *API) do(ctx context.Context, method, path string, query url.Values, b
 	}
 
 	return decodeResponse(resp.StatusCode, data, out)
+}
+
+func (api *API) signRequest(req *http.Request) error {
+	body, err := requestBody(req)
+	if err != nil {
+		return fmt.Errorf("read tuya request body for signing: %w", err)
+	}
+
+	nonce, err := api.nonce()
+	if err != nil {
+		return fmt.Errorf("create tuya request nonce: %w", err)
+	}
+
+	timestamp := strconv.FormatInt(api.now().UnixMilli(), 10)
+	accessToken := req.Header.Get("access_token")
+	canonical := req.URL.RequestURI()
+	req.Header.Set("client_id", api.credentials.ClientID)
+	req.Header.Set("sign_method", "HMAC-SHA256")
+	req.Header.Set("t", timestamp)
+	req.Header.Set("nonce", nonce)
+	req.Header.Set("sign", signRequest(api.credentials.ClientSecret, api.credentials.ClientID, accessToken, timestamp, nonce, req.Method, canonical, body))
+
+	return nil
+}
+
+func requestBody(req *http.Request) ([]byte, error) {
+	if req.GetBody != nil {
+		body, err := req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		defer body.Close()
+
+		return io.ReadAll(body)
+	}
+
+	if req.Body == nil {
+		return nil, nil
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	req.Body = io.NopCloser(bytes.NewReader(body))
+
+	return body, nil
 }
 
 func decodeResponse(statusCode int, data []byte, out any) error {

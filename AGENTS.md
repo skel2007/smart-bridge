@@ -31,6 +31,7 @@ Rules:
 - Shared behavior should live below adapter layers, not inside the CLI package.
 - `internal/yandex` should use `devices.DeviceGateway`; it must not depend on `internal/tuya` directly.
 - Prefer small, focused changes that match existing package boundaries.
+- Prefer established Go libraries for non-trivial infrastructure concerns. Keep tiny local code only when a dependency would not reduce complexity.
 
 ## Workflow
 

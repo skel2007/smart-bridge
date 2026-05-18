@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-retryablehttp"
 )
 
 const (
@@ -22,6 +24,8 @@ const (
 	listPageSize             = 20
 )
 
+const defaultHTTPTimeout = 10 * time.Second
+
 type Credentials struct {
 	Endpoint     string
 	ClientID     string
@@ -29,24 +33,28 @@ type Credentials struct {
 }
 
 type API struct {
-	endpoint     string
-	clientID     string
-	clientSecret string
-	httpClient   *http.Client
-	now          func() time.Time
-	nonce        func() (string, error)
-	accessToken  string
+	credentials Credentials
+	transport   *retryablehttp.Client
+	now         func() time.Time
+	nonce       func() (string, error)
+	accessToken string
 }
 
 func NewAPI(credentials Credentials) *API {
-	return &API{
-		endpoint:     strings.TrimRight(credentials.Endpoint, "/"),
-		clientID:     credentials.ClientID,
-		clientSecret: credentials.ClientSecret,
-		httpClient:   http.DefaultClient,
-		now:          time.Now,
-		nonce:        randomNonce,
+	api := &API{
+		credentials: credentials,
+		transport:   retryablehttp.NewClient(),
+		now:         time.Now,
+		nonce:       randomNonce,
 	}
+
+	api.credentials.Endpoint = strings.TrimRight(api.credentials.Endpoint, "/")
+	api.transport.HTTPClient.Timeout = defaultHTTPTimeout
+	api.transport.Logger = nil
+	api.transport.ErrorHandler = retryablehttp.PassthroughErrorHandler
+	api.transport.PrepareRetry = api.signRequest
+
+	return api
 }
 
 func (api *API) ListProjectDevices(ctx context.Context) ([]Device, error) {
