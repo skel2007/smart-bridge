@@ -53,24 +53,24 @@ func parseFlags(args []string) (configPath string, code int, ok bool) {
 	flags.StringVar(&configPath, "config", defaultConfigPath, "path to config file")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			printUsage(os.Stdout, flags)
+			printUsage(os.Stdout)
 			return "", exitOK, false
 		}
 
 		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
-		printUsage(os.Stderr, flags)
+		printUsage(os.Stderr)
 		return "", exitUsageError, false
 	}
 	if flags.NArg() > 0 {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: unexpected argument: %s\n\n", flags.Arg(0))
-		printUsage(os.Stderr, flags)
+		printUsage(os.Stderr)
 		return "", exitUsageError, false
 	}
 
 	return configPath, exitOK, true
 }
 
-func printUsage(w io.Writer, flags *flag.FlagSet) {
+func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "HTTP server for Yandex Smart Home API.")
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Usage: smart-bridge-server [--config config.yaml]")
