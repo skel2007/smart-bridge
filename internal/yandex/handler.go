@@ -74,6 +74,7 @@ func (handler *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing X-Request-Id", http.StatusBadRequest)
 		return
 	}
+	handler.logRequest(r, slog.LevelInfo, "yandex request received")
 
 	handler.mux.ServeHTTP(w, r)
 }
@@ -269,8 +270,9 @@ func (handler *Handler) logDeviceError(r *http.Request, deviceID string, code st
 
 func (handler *Handler) logRequest(r *http.Request, level slog.Level, message string, attrs ...any) {
 	attrs = append([]any{
-		"endpoint", r.URL.Path,
 		"request_id", r.Header.Get(headerRequestID),
+		"method", r.Method,
+		"path", r.URL.Path,
 	}, attrs...)
 
 	handler.logger.Log(r.Context(), level, message, attrs...)
