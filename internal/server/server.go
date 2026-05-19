@@ -93,6 +93,7 @@ func newTuyaGateway(cfg config.Config, logger *slog.Logger) devices.DeviceGatewa
 			ClientSecret: cfg.Tuya.ClientSecret,
 		},
 		tuya.WithLogger(logger),
+		tuya.WithSpecificationCache(),
 	)
 }
 

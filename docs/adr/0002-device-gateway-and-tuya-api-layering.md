@@ -28,6 +28,11 @@ Use an unexported `cloudAPI` interface between `tuya.Gateway` and `cloud.API`. T
 
 Keep `tuya.NewGateway(credentials)` as the construction entry point. Callers should not construct or depend on `cloud.API` directly.
 
+Tuya specification caching is opt-in on `tuya.Gateway` with `WithSpecificationCache`.
+The cache is process-lifetime, stores only successful specification reads, and coalesces concurrent misses for the same device.
+The HTTP server enables this cache because it reuses one gateway across requests.
+Short-lived CLI commands keep the default no-cache behavior.
+
 ## Consequences
 
 CLI and the future Yandex Smart Home API layer can depend on `devices.DeviceGateway` instead of `tuya.Gateway` when they need a vendor-neutral device source.
@@ -38,4 +43,5 @@ The low-level Tuya API layer remains an implementation detail. Transport-level t
 
 The split adds one internal layer, but it localizes future changes: retries, token refresh behavior, and Tuya endpoint DTO changes belong near `api`, while capability mapping and specification caching belong near `tuya.Gateway`.
 
-The current `tuya.Gateway` is sufficient for short-lived CLI command execution. A future long-running HTTP service must explicitly address concurrent access to token state and any specification cache before sharing a gateway instance across requests.
+The current `tuya.Gateway` default remains sufficient for short-lived CLI command execution.
+Long-running services can explicitly enable the specification cache before sharing a gateway instance across requests.

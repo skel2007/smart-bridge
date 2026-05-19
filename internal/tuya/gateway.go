@@ -3,7 +3,6 @@ package tuya
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
@@ -13,20 +12,6 @@ type Credentials struct {
 	Endpoint     string
 	ClientID     string
 	ClientSecret string
-}
-
-type Option func(*gatewayOptions)
-
-type gatewayOptions struct {
-	logger *slog.Logger
-}
-
-func WithLogger(logger *slog.Logger) Option {
-	return func(options *gatewayOptions) {
-		if logger != nil {
-			options.logger = logger
-		}
-	}
 }
 
 type Gateway struct {
@@ -41,19 +26,28 @@ type cloudAPI interface {
 }
 
 func NewGateway(credentials Credentials, options ...Option) *Gateway {
-	var gatewayOptions gatewayOptions
-	for _, option := range options {
-		option(&gatewayOptions)
-	}
+	gatewayOptions := newGatewayOptions(options...)
+	api := cloud.NewAPI(
+		cloud.Credentials{
+			Endpoint:     credentials.Endpoint,
+			ClientID:     credentials.ClientID,
+			ClientSecret: credentials.ClientSecret,
+		},
+		gatewayOptions.logger,
+	)
 
-	return newGateway(cloud.NewAPI(cloud.Credentials{
-		Endpoint:     credentials.Endpoint,
-		ClientID:     credentials.ClientID,
-		ClientSecret: credentials.ClientSecret,
-	}, gatewayOptions.logger))
+	return newGatewayWithOptions(api, gatewayOptions)
 }
 
-func newGateway(api cloudAPI) *Gateway {
+func newGateway(api cloudAPI, options ...Option) *Gateway {
+	return newGatewayWithOptions(api, newGatewayOptions(options...))
+}
+
+func newGatewayWithOptions(api cloudAPI, options gatewayOptions) *Gateway {
+	if options.specificationCache {
+		api = newCachedSpecificationsAPI(api)
+	}
+
 	return &Gateway{api: api}
 }
 
