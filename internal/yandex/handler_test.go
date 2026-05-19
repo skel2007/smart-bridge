@@ -362,7 +362,10 @@ func TestHandlerDevicesActionReturnsPerDeviceResults(t *testing.T) {
 }
 
 func newTestHandler(gateway devices.DeviceGateway) *Handler {
-	return NewHandler(gateway, "bridge-user", "secret-token")
+	return NewHandler(gateway, HandlerConfig{
+		UserID:      "bridge-user",
+		BearerToken: "secret-token",
+	})
 }
 
 func newHandlerRequest(method string, path string, body string) *http.Request {

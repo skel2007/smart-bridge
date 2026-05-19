@@ -27,6 +27,11 @@ type Handler struct {
 	mux         *http.ServeMux
 }
 
+type HandlerConfig struct {
+	UserID      string
+	BearerToken string
+}
+
 type Option func(*Handler)
 
 func WithLogger(logger *slog.Logger) Option {
@@ -37,11 +42,11 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-func NewHandler(gateway devices.DeviceGateway, userID string, bearerToken string, options ...Option) *Handler {
+func NewHandler(gateway devices.DeviceGateway, cfg HandlerConfig, options ...Option) *Handler {
 	handler := &Handler{
 		gateway:     gateway,
-		userID:      userID,
-		bearerToken: bearerToken,
+		userID:      cfg.UserID,
+		bearerToken: cfg.BearerToken,
 		logger:      slog.New(slog.DiscardHandler),
 		mux:         http.NewServeMux(),
 	}
