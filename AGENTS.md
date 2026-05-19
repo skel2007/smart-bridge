@@ -6,22 +6,26 @@ Repo-specific instructions for agents working on `smart-bridge`.
 
 - Go module: `github.com/skel2007/smart-bridge`.
 - CLI binary: `cmd/smart-bridge`.
+- HTTP server binary: `cmd/smart-bridge-server`.
 - Keep `cmd/smart-bridge/main.go` as a thin entrypoint.
+- Keep `cmd/smart-bridge-server/main.go` as a thin entrypoint.
 - Keep `internal/cli` as the CLI adapter layer.
+- Keep `internal/server` as the HTTP server wiring layer.
 - Do not introduce `pkg` until the repository actually exposes a public library API.
 
 ## Architecture
 
-Current dependency direction:
+CLI dependency direction:
 
 ```text
 cmd/smart-bridge -> internal/cli -> internal/config, internal/tuya, internal/devices
 ```
 
-Expected future HTTP app dependency direction:
+HTTP server dependency direction:
 
 ```text
-cmd/smart-bridge-http -> internal/config, internal/tuya, internal/yandex
+cmd/smart-bridge-server -> internal/server
+internal/server -> internal/config, internal/tuya, internal/yandex
 internal/yandex -> internal/devices
 internal/tuya -> internal/devices
 ```
@@ -29,7 +33,9 @@ internal/tuya -> internal/devices
 Rules:
 
 - Shared behavior should live below adapter layers, not inside the CLI package.
-- `internal/yandex` should use `devices.DeviceGateway`; it must not depend on `internal/tuya` directly.
+- `cmd/*` entrypoints should parse runtime flags, build process-level dependencies such as loggers and signal contexts, and delegate.
+- `internal/cli` owns CLI wiring: command structure, flag handling, output formatting, config validation for CLI commands, and platform gateway construction.
+- `internal/server` owns HTTP service wiring: config validation, platform gateway construction, downstream handler construction, route mounting, and service lifecycle.
 - Prefer small, focused changes that match existing package boundaries.
 - Prefer established Go libraries for non-trivial infrastructure concerns. Keep tiny local code only when a dependency would not reduce complexity.
 - Leave short comments only when a fresh reader cannot infer intent from names, tests, or docs; prefer comments for external API quirks, fallback behavior, concurrency constraints, and intentionally defensive logic.

@@ -20,12 +20,14 @@ The Tuya Cloud client logs outgoing HTTP attempts at debug level with method, sa
 
 The Yandex handler logs upstream failures that affect a whole request at warn level, partial discovery degradation at warn level, and per-device query/action errors at debug level.
 
-Do not add access logging middleware in the Yandex handler. Request access logs belong with the future HTTP server entrypoint.
+Do not add access logging middleware in the Yandex handler. Request access logs belong with the HTTP server entrypoint.
+
+The HTTP server entrypoint creates a JSON logger on stderr at debug level by default and passes it into server wiring.
 
 ## Consequences
 
 Callers that do not care about logs keep using the existing constructors without options.
 
-The HTTP entrypoint can later create one logger and pass it to both Tuya and Yandex wiring without package-level globals.
+The HTTP entrypoint creates one logger and passes it to both Tuya and Yandex wiring without package-level globals.
 
 Tuya transport logging remains close to retries and token lifecycle, while Yandex logs describe user-facing request degradation.

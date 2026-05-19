@@ -18,7 +18,7 @@ The domain model uses normalized capability state. This makes `brightness` strai
 
 Introduce the Yandex Smart Home API layer as package `internal/yandex`.
 Use `internal/server` for HTTP service wiring: config loading and validation, Tuya gateway construction, Yandex handler construction, and route mounting.
-The eventual `cmd/smart-bridge-http` entrypoint stays thin and calls the server package.
+The `cmd/smart-bridge-server` entrypoint stays thin and calls the server package.
 Keep integration packages flat for now: `internal/tuya` and `internal/yandex`; their roles are described by **Upstream Platform** and **Downstream Platform**, not encoded in nested paths.
 
 Use the Yandex REST protocol, not JSON-RPC. JSON-RPC is only supported via Yandex Cloud Functions, while smart-bridge is expected to run as a regular Go HTTP service.
