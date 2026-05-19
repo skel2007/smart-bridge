@@ -2,8 +2,10 @@ package yandex
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
@@ -11,6 +13,9 @@ import (
 const (
 	headerAuthorization = "Authorization"
 	headerRequestID     = "X-Request-Id"
+
+	actionStatusDone  = "DONE"
+	actionStatusError = "ERROR"
 )
 
 type Handler struct {
@@ -31,6 +36,7 @@ func NewHandler(gateway devices.DeviceGateway, userID string, bearerToken string
 	handler.mux.HandleFunc("POST /v1.0/user/unlink", handler.serveUnlink)
 	handler.mux.HandleFunc("GET /v1.0/user/devices", handler.serveDevices)
 	handler.mux.HandleFunc("POST /v1.0/user/devices/query", handler.serveDevicesQuery)
+	handler.mux.HandleFunc("POST /v1.0/user/devices/action", handler.serveDevicesAction)
 
 	return handler
 }
@@ -130,6 +136,54 @@ func (handler *Handler) serveDevicesQuery(w http.ResponseWriter, r *http.Request
 	})
 }
 
+func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Request) {
+	var request DevicesActionRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+
+	deviceList, err := handler.gateway.ListDevices(r.Context())
+	if err != nil {
+		http.Error(w, "list devices failed", http.StatusInternalServerError)
+		return
+	}
+	knownDevices := mapDevicesByID(deviceList)
+
+	results := make([]DeviceActionResult, 0, len(request.Payload.Devices))
+	for _, deviceAction := range request.Payload.Devices {
+		if _, ok := knownDevices[deviceAction.ID]; !ok {
+			results = append(results, deviceActionError(deviceAction.ID, errorCodeDeviceNotFound, "device not found"))
+			continue
+		}
+
+		commands, err := MapDeviceActionCommands(deviceAction)
+		if err != nil {
+			var mappingErr ActionMappingError
+			if errors.As(err, &mappingErr) {
+				results = append(results, deviceCapabilityResults(deviceAction, actionError(mappingErr.Code, mappingErr.Message)))
+				continue
+			}
+
+			results = append(results, deviceCapabilityResults(deviceAction, actionError(errorCodeInvalidValue, err.Error())))
+			continue
+		}
+
+		if err := handler.gateway.SendCommands(r.Context(), deviceAction.ID, commands); err != nil {
+			results = append(results, deviceCapabilityResults(deviceAction, actionError(errorCodeDeviceUnreachable, "device is unreachable")))
+			continue
+		}
+
+		results = append(results, deviceCapabilityResults(deviceAction, ActionResult{Status: actionStatusDone}))
+	}
+
+	writeJSON(w, http.StatusOK, DevicesActionResponse{
+		RequestID: r.Header.Get(headerRequestID),
+		Payload: DevicesActionResults{
+			Devices: results,
+		},
+	})
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, out any) bool {
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(out); err != nil {
@@ -165,5 +219,38 @@ func deviceStateError(deviceID string, code string, message string) DeviceState 
 		ID:           deviceID,
 		ErrorCode:    code,
 		ErrorMessage: message,
+	}
+}
+
+func deviceActionError(deviceID string, code string, message string) DeviceActionResult {
+	return DeviceActionResult{
+		ID:           deviceID,
+		ActionResult: &ActionResult{Status: actionStatusError, ErrorCode: code, ErrorMessage: message},
+	}
+}
+
+func deviceCapabilityResults(action DeviceAction, result ActionResult) DeviceActionResult {
+	capabilities := make([]CapabilityActionResult, 0, len(action.Capabilities))
+	for _, capability := range action.Capabilities {
+		capabilities = append(capabilities, CapabilityActionResult{
+			Type: capability.Type,
+			State: CapabilityActionResultState{
+				Instance:     capability.State.Instance,
+				ActionResult: result,
+			},
+		})
+	}
+
+	return DeviceActionResult{
+		ID:           action.ID,
+		Capabilities: capabilities,
+	}
+}
+
+func actionError(code string, message string) ActionResult {
+	return ActionResult{
+		Status:       actionStatusError,
+		ErrorCode:    code,
+		ErrorMessage: strings.TrimSpace(message),
 	}
 }

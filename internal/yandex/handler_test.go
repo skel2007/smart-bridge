@@ -2,6 +2,7 @@ package yandex
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -275,6 +276,72 @@ func TestHandlerDevicesQueryReturnsRequestLevelErrors(t *testing.T) {
 	}
 }
 
+func TestHandlerDevicesActionReturnsPerDeviceResults(t *testing.T) {
+	gateway := &fakeGateway{
+		devices: []devices.Device{
+			{ID: "light-1", Name: "Desk light", Type: devices.DeviceTypeLight},
+			{ID: "light-invalid", Name: "Invalid light", Type: devices.DeviceTypeLight},
+			{ID: "light-unreachable", Name: "Unreachable light", Type: devices.DeviceTypeLight},
+		},
+		sendErrors: map[string]error{
+			"light-unreachable": errors.New("upstream unavailable"),
+		},
+	}
+	body := mustJSON(t, DevicesActionRequest{
+		Payload: DevicesActionPayload{
+			Devices: []DeviceAction{
+				{
+					ID: "light-1",
+					Capabilities: []CapabilityAction{
+						newTestCapabilityAction(capabilityTypeOnOff, capabilityInstanceOn, true),
+					},
+				},
+				{
+					ID: "missing-light",
+					Capabilities: []CapabilityAction{
+						newTestCapabilityAction(capabilityTypeOnOff, capabilityInstanceOn, true),
+					},
+				},
+				{
+					ID: "light-invalid",
+					Capabilities: []CapabilityAction{
+						newTestCapabilityAction(capabilityTypeRange, capabilityInstanceBrightness, 101),
+					},
+				},
+				{
+					ID: "light-unreachable",
+					Capabilities: []CapabilityAction{
+						newTestCapabilityAction(capabilityTypeRange, capabilityInstanceBrightness, 42),
+					},
+				},
+			},
+		},
+	})
+	handler := newTestHandler(gateway)
+	request := newHandlerRequest(http.MethodPost, "/v1.0/user/devices/action", body)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+
+	var actionResponse DevicesActionResponse
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &actionResponse))
+	require.Equal(t, "request-1", actionResponse.RequestID)
+	require.Len(t, actionResponse.Payload.Devices, 4)
+	require.Equal(t, actionStatusDone, actionResponse.Payload.Devices[0].Capabilities[0].State.ActionResult.Status)
+	require.Equal(t, errorCodeDeviceNotFound, actionResponse.Payload.Devices[1].ActionResult.ErrorCode)
+	require.Equal(t, errorCodeInvalidValue, actionResponse.Payload.Devices[2].Capabilities[0].State.ActionResult.ErrorCode)
+	require.Equal(t, errorCodeDeviceUnreachable, actionResponse.Payload.Devices[3].Capabilities[0].State.ActionResult.ErrorCode)
+	require.Equal(t, []devices.CapabilityCommand{
+		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
+	}, gateway.sentCommands["light-1"])
+	require.Equal(t, []devices.CapabilityCommand{
+		devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 42),
+	}, gateway.sentCommands["light-unreachable"])
+	require.NotContains(t, gateway.sentCommands, "light-invalid")
+}
+
 func newTestHandler(gateway devices.DeviceGateway) *Handler {
 	return NewHandler(gateway, "bridge-user", "secret-token")
 }
@@ -287,12 +354,23 @@ func newHandlerRequest(method string, path string, body string) *http.Request {
 	return request
 }
 
+func mustJSON(t *testing.T, value any) string {
+	t.Helper()
+
+	data, err := json.Marshal(value)
+	require.NoError(t, err)
+
+	return string(data)
+}
+
 type fakeGateway struct {
 	devices             []devices.Device
 	listDevicesErr      error
 	capabilities        map[string][]devices.Capability
 	capabilityErrors    map[string]error
 	listCapabilityCalls []string
+	sendErrors          map[string]error
+	sentCommands        map[string][]devices.CapabilityCommand
 }
 
 func (gateway *fakeGateway) ListDevices(ctx context.Context) ([]devices.Device, error) {
@@ -309,5 +387,13 @@ func (gateway *fakeGateway) ListCapabilities(ctx context.Context, deviceID strin
 }
 
 func (gateway *fakeGateway) SendCommands(ctx context.Context, deviceID string, commands []devices.CapabilityCommand) error {
+	if gateway.sentCommands == nil {
+		gateway.sentCommands = make(map[string][]devices.CapabilityCommand)
+	}
+	gateway.sentCommands[deviceID] = append([]devices.CapabilityCommand(nil), commands...)
+	if err := gateway.sendErrors[deviceID]; err != nil {
+		return err
+	}
+
 	return nil
 }
