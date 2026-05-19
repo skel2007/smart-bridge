@@ -174,6 +174,107 @@ func TestHandlerDevicesReturnsRequestLevelErrors(t *testing.T) {
 	}
 }
 
+func TestHandlerDevicesQueryReturnsPerDeviceErrors(t *testing.T) {
+	gateway := &fakeGateway{
+		devices: []devices.Device{
+			{ID: "light-1", Name: "Desk light", Type: devices.DeviceTypeLight},
+			{ID: "light-2", Name: "Floor light", Type: devices.DeviceTypeLight},
+		},
+		capabilities: map[string][]devices.Capability{
+			"light-1": {
+				devices.NewOnOffCapability(devices.CapabilityInstancePower, true),
+			},
+		},
+		capabilityErrors: map[string]error{
+			"light-2": errors.New("upstream unavailable"),
+		},
+	}
+	handler := newTestHandler(gateway)
+	request := newHandlerRequest(http.MethodPost, "/v1.0/user/devices/query", `{
+		"devices": [
+			{"id": "light-1"},
+			{"id": "missing-light"},
+			{"id": "light-2"}
+		]
+	}`)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.JSONEq(t, `{
+		"request_id": "request-1",
+		"payload": {
+			"devices": [
+				{
+					"id": "light-1",
+					"capabilities": [
+						{
+							"type": "devices.capabilities.on_off",
+							"state": {
+								"instance": "on",
+								"value": true
+							}
+						}
+					]
+				},
+				{
+					"id": "missing-light",
+					"error_code": "DEVICE_NOT_FOUND",
+					"error_message": "device not found"
+				},
+				{
+					"id": "light-2",
+					"error_code": "DEVICE_UNREACHABLE",
+					"error_message": "device is unreachable"
+				}
+			]
+		}
+	}`, response.Body.String())
+}
+
+func TestHandlerDevicesQueryReturnsRequestLevelErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		gateway    *fakeGateway
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "malformed json",
+			gateway:    &fakeGateway{},
+			body:       `{`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "trailing json token",
+			gateway:    &fakeGateway{},
+			body:       `{"devices": []}{}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "list devices fails",
+			gateway: &fakeGateway{
+				listDevicesErr: errors.New("upstream unavailable"),
+			},
+			body:       `{"devices": []}`,
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := newTestHandler(tt.gateway)
+			request := newHandlerRequest(http.MethodPost, "/v1.0/user/devices/query", tt.body)
+			response := httptest.NewRecorder()
+
+			handler.ServeHTTP(response, request)
+
+			require.Equal(t, tt.wantStatus, response.Code)
+		})
+	}
+}
+
 func newTestHandler(gateway devices.DeviceGateway) *Handler {
 	return NewHandler(gateway, "bridge-user", "secret-token")
 }
