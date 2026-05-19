@@ -109,6 +109,9 @@ func loadDeviceGateway(configPath string) (devices.DeviceGateway, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := cfg.Tuya.Validate(); err != nil {
+		return nil, err
+	}
 
 	return tuya.NewGateway(tuya.Credentials{
 		Endpoint:     cfg.Tuya.Endpoint,

@@ -1,4 +1,12 @@
+http:
+  port: 0
+
 tuya:
   endpoint: https://openapi.tuyaeu.com
   client_id: your-client-id
   client_secret: your-client-secret
+
+yandex:
+  user_id: your-stable-user-id
+  bearer_token: your-strong-bearer-token
+  path_prefix: /api/yandex

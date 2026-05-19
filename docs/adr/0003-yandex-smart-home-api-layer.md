@@ -69,17 +69,30 @@ Use this minimal error policy:
 - invalid action value -> Yandex `INVALID_VALUE`
 - unsupported capability/action -> Yandex `NOT_SUPPORTED_IN_CURRENT_MODE`
 
-The Yandex layer is single-user. It uses flat platform config:
+The Yandex layer is single-user. It uses flat runtime and platform config:
 
 ```yaml
+http:
+  port: 0
 tuya:
   # ...
 yandex:
   user_id: your-stable-user-id
   bearer_token: ...
+  path_prefix: /api/yandex
 ```
 
-`yandex.user_id` is the bridge-side user ID returned to Yandex for this **Personal Bridge**. It is not a Yandex account ID and must be configured explicitly. `yandex.bearer_token` is required for the HTTP layer. The shared config loader may read the `yandex` section, but must not make Yandex fields globally required; CLI commands continue to validate only the Tuya fields they use. Do not implement OAuth endpoints in the first Yandex layer; the bearer token is preconfigured outside smart-bridge and validated on incoming Yandex API requests. `POST /v1.0/user/unlink` acknowledges unlink notifications for the single configured user, but does not delete local configuration or upstream credentials.
+`http.port` is local-only; `0` means an OS-assigned port.
+Domain name, TLS, DNS, and reverse proxy or load balancer routing are outside smart-bridge.
+
+`yandex.user_id` is the bridge-side user ID returned to Yandex for this **Personal Bridge**, not a Yandex account ID.
+`yandex.path_prefix` is the local mount path before the Yandex REST protocol paths;
+the Yandex handler still owns `/v1.0/...` internally.
+
+The shared config loader may read all sections, but validation stays caller-specific.
+CLI commands validate only the Tuya fields they use.
+The first Yandex layer uses the preconfigured bearer token and does not implement OAuth endpoints.
+`POST /v1.0/user/unlink` acknowledges unlink notifications without deleting local config or upstream credentials.
 
 `GET /v1.0/user/devices` may call `ListCapabilities` per device to describe Yandex capabilities accurately. This is acceptable for the first version; future caching belongs above or inside the upstream adapter, as described in ADR 0001 and ADR 0002.
 
