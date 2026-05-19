@@ -9,11 +9,11 @@ import (
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
 
-func MapDeviceActionCommands(action DeviceAction) ([]devices.CapabilityCommand, error) {
+func mapDeviceActionCommands(action DeviceAction) ([]devices.CapabilityCommand, error) {
 	commands := make([]devices.CapabilityCommand, 0, len(action.Capabilities))
 
 	for _, capability := range action.Capabilities {
-		command, err := MapCapabilityActionCommand(capability)
+		command, err := mapCapabilityActionCommand(capability)
 		if err != nil {
 			return nil, err
 		}
@@ -24,80 +24,100 @@ func MapDeviceActionCommands(action DeviceAction) ([]devices.CapabilityCommand, 
 	return commands, nil
 }
 
-func MapCapabilityActionCommand(action CapabilityAction) (devices.CapabilityCommand, error) {
+func mapCapabilityActionCommand(action CapabilityAction) (devices.CapabilityCommand, error) {
 	switch action.Type {
 	case capabilityTypeOnOff:
-		if action.State.Instance != capabilityInstanceOn {
-			return devices.CapabilityCommand{}, unsupportedAction(action)
-		}
-
-		var state bool
-		if err := decodeActionValue(action, &state); err != nil {
-			return devices.CapabilityCommand{}, err
-		}
-
-		return devices.NewOnOffCommand(devices.CapabilityInstancePower, state), nil
+		return mapOnOffActionCommand(action)
 	case capabilityTypeRange:
-		if action.State.Instance != capabilityInstanceBrightness {
-			return devices.CapabilityCommand{}, unsupportedAction(action)
-		}
-		if action.State.Relative != nil && *action.State.Relative {
-			return devices.CapabilityCommand{}, unsupportedAction(action)
-		}
-
-		var state float64
-		if err := decodeActionValue(action, &state); err != nil {
-			return devices.CapabilityCommand{}, err
-		}
-
-		command := devices.NewRangeCommand(devices.CapabilityInstanceBrightness, state)
-		if err := command.Validate(); err != nil {
-			return devices.CapabilityCommand{}, invalidActionValue(action, err)
-		}
-
-		return command, nil
+		return mapRangeActionCommand(action)
 	case capabilityTypeColorSetting:
-		switch action.State.Instance {
-		case capabilityInstanceHSV:
-			var state actionHSVValue
-			if err := decodeActionValue(action, &state); err != nil {
-				return devices.CapabilityCommand{}, err
-			}
-			if state.H == nil || state.S == nil || state.V == nil {
-				return devices.CapabilityCommand{}, invalidActionValue(action, errors.New("hsv value must include h, s, and v"))
-			}
-
-			command := devices.NewColorCommand(devices.CapabilityInstanceColor, devices.HSVColor{
-				Hue:        float64(*state.H),
-				Saturation: float64(*state.S),
-				Value:      float64(*state.V),
-			})
-			if err := command.Validate(); err != nil {
-				return devices.CapabilityCommand{}, invalidActionValue(action, err)
-			}
-
-			return command, nil
-		case capabilityInstanceTemperatureK:
-			var state float64
-			if err := decodeActionValue(action, &state); err != nil {
-				return devices.CapabilityCommand{}, err
-			}
-
-			command := devices.NewRangeCommand(
-				devices.CapabilityInstanceColorTemperatureLevel,
-				mapKelvinToColorTemperatureLevel(state),
-			)
-			if err := command.Validate(); err != nil {
-				return devices.CapabilityCommand{}, invalidActionValue(action, err)
-			}
-
-			return command, nil
-		default:
-			return devices.CapabilityCommand{}, unsupportedAction(action)
-		}
+		return mapColorSettingActionCommand(action)
 	default:
 		return devices.CapabilityCommand{}, unsupportedAction(action)
 	}
+}
+
+func mapOnOffActionCommand(action CapabilityAction) (devices.CapabilityCommand, error) {
+	if action.State.Instance != capabilityInstanceOn {
+		return devices.CapabilityCommand{}, unsupportedAction(action)
+	}
+
+	var state bool
+	if err := decodeActionValue(action, &state); err != nil {
+		return devices.CapabilityCommand{}, err
+	}
+
+	return devices.NewOnOffCommand(devices.CapabilityInstancePower, state), nil
+}
+
+func mapRangeActionCommand(action CapabilityAction) (devices.CapabilityCommand, error) {
+	if action.State.Instance != capabilityInstanceBrightness {
+		return devices.CapabilityCommand{}, unsupportedAction(action)
+	}
+	if action.State.Relative != nil && *action.State.Relative {
+		return devices.CapabilityCommand{}, unsupportedAction(action)
+	}
+
+	var state float64
+	if err := decodeActionValue(action, &state); err != nil {
+		return devices.CapabilityCommand{}, err
+	}
+
+	command := devices.NewRangeCommand(devices.CapabilityInstanceBrightness, state)
+	if err := command.Validate(); err != nil {
+		return devices.CapabilityCommand{}, invalidActionValue(action, err)
+	}
+
+	return command, nil
+}
+
+func mapColorSettingActionCommand(action CapabilityAction) (devices.CapabilityCommand, error) {
+	switch action.State.Instance {
+	case capabilityInstanceHSV:
+		return mapHSVActionCommand(action)
+	case capabilityInstanceTemperatureK:
+		return mapTemperatureKActionCommand(action)
+	default:
+		return devices.CapabilityCommand{}, unsupportedAction(action)
+	}
+}
+
+func mapHSVActionCommand(action CapabilityAction) (devices.CapabilityCommand, error) {
+	var state actionHSVValue
+	if err := decodeActionValue(action, &state); err != nil {
+		return devices.CapabilityCommand{}, err
+	}
+	if state.H == nil || state.S == nil || state.V == nil {
+		return devices.CapabilityCommand{}, invalidActionValue(action, errors.New("hsv value must include h, s, and v"))
+	}
+
+	command := devices.NewColorCommand(devices.CapabilityInstanceColor, devices.HSVColor{
+		Hue:        float64(*state.H),
+		Saturation: float64(*state.S),
+		Value:      float64(*state.V),
+	})
+	if err := command.Validate(); err != nil {
+		return devices.CapabilityCommand{}, invalidActionValue(action, err)
+	}
+
+	return command, nil
+}
+
+func mapTemperatureKActionCommand(action CapabilityAction) (devices.CapabilityCommand, error) {
+	var state float64
+	if err := decodeActionValue(action, &state); err != nil {
+		return devices.CapabilityCommand{}, err
+	}
+
+	command := devices.NewRangeCommand(
+		devices.CapabilityInstanceColorTemperatureLevel,
+		mapKelvinToColorTemperatureLevel(state),
+	)
+	if err := command.Validate(); err != nil {
+		return devices.CapabilityCommand{}, invalidActionValue(action, err)
+	}
+
+	return command, nil
 }
 
 func decodeActionValue(action CapabilityAction, out any) error {
@@ -114,15 +134,15 @@ func decodeActionValue(action CapabilityAction, out any) error {
 	return nil
 }
 
-func unsupportedAction(action CapabilityAction) ActionMappingError {
-	return ActionMappingError{
+func unsupportedAction(action CapabilityAction) actionMappingError {
+	return actionMappingError{
 		Code:    errorCodeNotSupportedInCurrentMode,
 		Message: fmt.Sprintf("unsupported action: type %q instance %q", action.Type, action.State.Instance),
 	}
 }
 
-func invalidActionValue(action CapabilityAction, err error) ActionMappingError {
-	return ActionMappingError{
+func invalidActionValue(action CapabilityAction, err error) actionMappingError {
+	return actionMappingError{
 		Code:    errorCodeInvalidValue,
 		Message: fmt.Sprintf("invalid action value for type %q instance %q: %v", action.Type, action.State.Instance, err),
 		Cause:   err,

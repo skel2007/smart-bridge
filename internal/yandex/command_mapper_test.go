@@ -2,6 +2,7 @@ package yandex
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
@@ -17,7 +18,7 @@ func TestMapDeviceActionCommands(t *testing.T) {
 		},
 	}
 
-	commands, err := MapDeviceActionCommands(action)
+	commands, err := mapDeviceActionCommands(action)
 
 	require.NoError(t, err)
 	require.Equal(t, []devices.CapabilityCommand{
@@ -64,7 +65,7 @@ func TestMapCapabilityActionCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			command, err := MapCapabilityActionCommand(tt.action)
+			command, err := mapCapabilityActionCommand(tt.action)
 
 			require.NoError(t, err)
 			require.Equal(t, tt.want, command)
@@ -118,10 +119,10 @@ func TestMapCapabilityActionCommandInvalidValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := MapCapabilityActionCommand(tt.action)
+			_, err := mapCapabilityActionCommand(tt.action)
 
-			var mappingErr ActionMappingError
-			require.ErrorAs(t, err, &mappingErr)
+			mappingErr, ok := errors.AsType[actionMappingError](err)
+			require.True(t, ok)
 			require.Equal(t, errorCodeInvalidValue, mappingErr.Code)
 		})
 	}
@@ -151,7 +152,7 @@ func TestMapCapabilityActionCommandUnsupportedActions(t *testing.T) {
 				State: CapabilityActionState{
 					Instance: capabilityInstanceBrightness,
 					Value:    json.RawMessage(`10`),
-					Relative: boolPtr(true),
+					Relative: new(true),
 				},
 			},
 		},
@@ -163,10 +164,10 @@ func TestMapCapabilityActionCommandUnsupportedActions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := MapCapabilityActionCommand(tt.action)
+			_, err := mapCapabilityActionCommand(tt.action)
 
-			var mappingErr ActionMappingError
-			require.ErrorAs(t, err, &mappingErr)
+			mappingErr, ok := errors.AsType[actionMappingError](err)
+			require.True(t, ok)
 			require.Equal(t, errorCodeNotSupportedInCurrentMode, mappingErr.Code)
 		})
 	}
@@ -181,11 +182,11 @@ func TestMapDeviceActionCommandsStopsAtFirstMappingError(t *testing.T) {
 		},
 	}
 
-	commands, err := MapDeviceActionCommands(action)
+	commands, err := mapDeviceActionCommands(action)
 
 	require.Nil(t, commands)
-	var mappingErr ActionMappingError
-	require.ErrorAs(t, err, &mappingErr)
+	mappingErr, ok := errors.AsType[actionMappingError](err)
+	require.True(t, ok)
 	require.Equal(t, errorCodeNotSupportedInCurrentMode, mappingErr.Code)
 }
 
@@ -202,8 +203,4 @@ func newTestCapabilityAction(capabilityType string, instance string, value any) 
 			Value:    data,
 		},
 	}
-}
-
-func boolPtr(value bool) *bool {
-	return &value
 }

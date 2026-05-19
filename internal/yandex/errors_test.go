@@ -9,7 +9,7 @@ import (
 
 func TestActionMappingErrorUnwrap(t *testing.T) {
 	cause := errors.New("decode failed")
-	err := ActionMappingError{
+	err := actionMappingError{
 		Code:    errorCodeInvalidValue,
 		Message: "invalid action value",
 		Cause:   cause,

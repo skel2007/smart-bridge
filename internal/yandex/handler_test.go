@@ -392,11 +392,11 @@ type fakeGateway struct {
 	sentCommands        map[string][]devices.CapabilityCommand
 }
 
-func (gateway *fakeGateway) ListDevices(ctx context.Context) ([]devices.Device, error) {
+func (gateway *fakeGateway) ListDevices(_ context.Context) ([]devices.Device, error) {
 	return gateway.devices, gateway.listDevicesErr
 }
 
-func (gateway *fakeGateway) ListCapabilities(ctx context.Context, deviceID string) ([]devices.Capability, error) {
+func (gateway *fakeGateway) ListCapabilities(_ context.Context, deviceID string) ([]devices.Capability, error) {
 	gateway.listCapabilityCalls = append(gateway.listCapabilityCalls, deviceID)
 	if err := gateway.capabilityErrors[deviceID]; err != nil {
 		return nil, err
@@ -405,7 +405,7 @@ func (gateway *fakeGateway) ListCapabilities(ctx context.Context, deviceID strin
 	return gateway.capabilities[deviceID], nil
 }
 
-func (gateway *fakeGateway) SendCommands(ctx context.Context, deviceID string, commands []devices.CapabilityCommand) error {
+func (gateway *fakeGateway) SendCommands(_ context.Context, deviceID string, commands []devices.CapabilityCommand) error {
 	if gateway.sentCommands == nil {
 		gateway.sentCommands = make(map[string][]devices.CapabilityCommand)
 	}

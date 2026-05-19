@@ -9,7 +9,7 @@ import (
 )
 
 func TestMapCapabilityDescriptionsMergesColorSettingParameters(t *testing.T) {
-	descriptions := MapCapabilityDescriptions([]devices.Capability{
+	descriptions := mapCapabilityDescriptions([]devices.Capability{
 		devices.NewColorCapabilityWithoutState(devices.CapabilityInstanceColor),
 		devices.NewRangeCapabilityWithoutState(devices.CapabilityInstanceColorTemperatureLevel, devices.RangeParameters{
 			Min:       0,
@@ -38,7 +38,7 @@ func TestMapCapabilityDescriptionsMergesColorSettingParameters(t *testing.T) {
 }
 
 func TestMapCapabilityDescriptionsSkipsUnsupportedCapabilities(t *testing.T) {
-	descriptions := MapCapabilityDescriptions([]devices.Capability{
+	descriptions := mapCapabilityDescriptions([]devices.Capability{
 		devices.NewModeCapabilityWithoutState(devices.CapabilityInstanceWorkMode, devices.ModeParameters{
 			Modes: []string{"white", "colour"},
 		}),
@@ -52,7 +52,7 @@ func TestMapCapabilityDescriptionsSkipsUnsupportedCapabilities(t *testing.T) {
 }
 
 func TestMapDeviceState(t *testing.T) {
-	state := MapDeviceState("light-1", []devices.Capability{
+	state := mapDeviceState("light-1", []devices.Capability{
 		devices.NewOnOffCapability(devices.CapabilityInstancePower, true),
 		devices.NewRangeCapability(devices.CapabilityInstanceBrightness, 42, devices.RangeParameters{
 			Min:       0,
@@ -114,7 +114,7 @@ func TestMapDeviceState(t *testing.T) {
 }
 
 func TestMapCapabilityStatesSkipsMissingAndUnsupportedStates(t *testing.T) {
-	states := MapCapabilityStates([]devices.Capability{
+	states := mapCapabilityStates([]devices.Capability{
 		devices.NewOnOffCapabilityWithoutState(devices.CapabilityInstancePower),
 		devices.NewRangeCapabilityWithoutState(devices.CapabilityInstanceBrightness, devices.RangeParameters{
 			Min:       0,

@@ -7,16 +7,16 @@ const (
 	errorCodeDeviceNotFound            = "DEVICE_NOT_FOUND"
 )
 
-type ActionMappingError struct {
+type actionMappingError struct {
 	Code    string
 	Message string
 	Cause   error
 }
 
-func (err ActionMappingError) Error() string {
+func (err actionMappingError) Error() string {
 	return err.Message
 }
 
-func (err ActionMappingError) Unwrap() error {
+func (err actionMappingError) Unwrap() error {
 	return err.Cause
 }

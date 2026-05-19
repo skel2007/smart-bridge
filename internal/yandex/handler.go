@@ -30,8 +30,8 @@ func NewHandler(gateway devices.DeviceGateway, userID string, bearerToken string
 		gateway:     gateway,
 		userID:      userID,
 		bearerToken: bearerToken,
+		mux:         http.NewServeMux(),
 	}
-	handler.mux = http.NewServeMux()
 	handler.mux.HandleFunc("HEAD /v1.0/{$}", handler.serveRoot)
 	handler.mux.HandleFunc("POST /v1.0/user/unlink", handler.serveUnlink)
 	handler.mux.HandleFunc("GET /v1.0/user/devices", handler.serveDevices)
@@ -64,7 +64,7 @@ func (handler *Handler) authorized(r *http.Request) bool {
 	return r.Header.Get(headerAuthorization) == "Bearer "+handler.bearerToken
 }
 
-func (handler *Handler) serveRoot(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) serveRoot(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -86,7 +86,7 @@ func (handler *Handler) serveDevices(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		descriptions = append(descriptions, MapDeviceDescription(device, capabilities))
+		descriptions = append(descriptions, mapDeviceDescription(device, capabilities))
 	}
 
 	writeJSON(w, http.StatusOK, DevicesResponse{
@@ -109,22 +109,22 @@ func (handler *Handler) serveDevicesQuery(w http.ResponseWriter, r *http.Request
 		http.Error(w, "list devices failed", http.StatusInternalServerError)
 		return
 	}
-	knownDevices := mapDevicesByID(deviceList)
+	knownDeviceIDs := mapDeviceIDs(deviceList)
 
 	states := make([]DeviceState, 0, len(request.Devices))
 	for _, requestedDevice := range request.Devices {
-		if _, ok := knownDevices[requestedDevice.ID]; !ok {
-			states = append(states, deviceStateError(requestedDevice.ID, errorCodeDeviceNotFound, "device not found"))
+		if _, ok := knownDeviceIDs[requestedDevice.ID]; !ok {
+			states = append(states, newDeviceStateError(requestedDevice.ID, errorCodeDeviceNotFound, "device not found"))
 			continue
 		}
 
 		capabilities, err := handler.gateway.ListCapabilities(r.Context(), requestedDevice.ID)
 		if err != nil {
-			states = append(states, deviceStateError(requestedDevice.ID, errorCodeDeviceUnreachable, "device is unreachable"))
+			states = append(states, newDeviceStateError(requestedDevice.ID, errorCodeDeviceUnreachable, "device is unreachable"))
 			continue
 		}
 
-		states = append(states, MapDeviceState(requestedDevice.ID, capabilities))
+		states = append(states, mapDeviceState(requestedDevice.ID, capabilities))
 	}
 
 	writeJSON(w, http.StatusOK, DevicesQueryResponse{
@@ -146,33 +146,32 @@ func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "list devices failed", http.StatusInternalServerError)
 		return
 	}
-	knownDevices := mapDevicesByID(deviceList)
+	knownDeviceIDs := mapDeviceIDs(deviceList)
 
 	results := make([]DeviceActionResult, 0, len(request.Payload.Devices))
 	for _, deviceAction := range request.Payload.Devices {
-		if _, ok := knownDevices[deviceAction.ID]; !ok {
-			results = append(results, deviceActionError(deviceAction.ID, errorCodeDeviceNotFound, "device not found"))
+		if _, ok := knownDeviceIDs[deviceAction.ID]; !ok {
+			results = append(results, newDeviceActionError(deviceAction.ID, errorCodeDeviceNotFound, "device not found"))
 			continue
 		}
 
-		commands, err := MapDeviceActionCommands(deviceAction)
+		commands, err := mapDeviceActionCommands(deviceAction)
 		if err != nil {
-			var mappingErr ActionMappingError
-			if errors.As(err, &mappingErr) {
-				results = append(results, deviceCapabilityResults(deviceAction, actionError(mappingErr.Code, mappingErr.Message)))
+			if mappingErr, ok := errors.AsType[actionMappingError](err); ok {
+				results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(mappingErr.Code, mappingErr.Message)))
 				continue
 			}
 
-			results = append(results, deviceCapabilityResults(deviceAction, actionError(errorCodeInvalidValue, err.Error())))
+			results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(errorCodeInvalidValue, err.Error())))
 			continue
 		}
 
 		if err := handler.gateway.SendCommands(r.Context(), deviceAction.ID, commands); err != nil {
-			results = append(results, deviceCapabilityResults(deviceAction, actionError(errorCodeDeviceUnreachable, "device is unreachable")))
+			results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(errorCodeDeviceUnreachable, "device is unreachable")))
 			continue
 		}
 
-		results = append(results, deviceCapabilityResults(deviceAction, ActionResult{Status: actionStatusDone}))
+		results = append(results, newDeviceCapabilityResults(deviceAction, ActionResult{Status: actionStatusDone}))
 	}
 
 	writeJSON(w, http.StatusOK, DevicesActionResponse{
@@ -204,16 +203,16 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
-func mapDevicesByID(deviceList []devices.Device) map[string]devices.Device {
-	result := make(map[string]devices.Device, len(deviceList))
+func mapDeviceIDs(deviceList []devices.Device) map[string]struct{} {
+	result := make(map[string]struct{}, len(deviceList))
 	for _, device := range deviceList {
-		result[device.ID] = device
+		result[device.ID] = struct{}{}
 	}
 
 	return result
 }
 
-func deviceStateError(deviceID string, code string, message string) DeviceState {
+func newDeviceStateError(deviceID string, code string, message string) DeviceState {
 	return DeviceState{
 		ID:           deviceID,
 		ErrorCode:    code,
@@ -221,14 +220,14 @@ func deviceStateError(deviceID string, code string, message string) DeviceState 
 	}
 }
 
-func deviceActionError(deviceID string, code string, message string) DeviceActionResult {
+func newDeviceActionError(deviceID string, code string, message string) DeviceActionResult {
 	return DeviceActionResult{
 		ID:           deviceID,
-		ActionResult: &ActionResult{Status: actionStatusError, ErrorCode: code, ErrorMessage: message},
+		ActionResult: new(newActionError(code, message)),
 	}
 }
 
-func deviceCapabilityResults(action DeviceAction, result ActionResult) DeviceActionResult {
+func newDeviceCapabilityResults(action DeviceAction, result ActionResult) DeviceActionResult {
 	capabilities := make([]CapabilityActionResult, 0, len(action.Capabilities))
 	for _, capability := range action.Capabilities {
 		capabilities = append(capabilities, CapabilityActionResult{
@@ -246,7 +245,7 @@ func deviceCapabilityResults(action DeviceAction, result ActionResult) DeviceAct
 	}
 }
 
-func actionError(code string, message string) ActionResult {
+func newActionError(code string, message string) ActionResult {
 	return ActionResult{
 		Status:       actionStatusError,
 		ErrorCode:    code,

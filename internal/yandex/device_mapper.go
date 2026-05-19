@@ -9,20 +9,20 @@ const (
 	deviceTypeOther  = "devices.types.other"
 )
 
-func MapDeviceDescription(device devices.Device, capabilities []devices.Capability) DeviceDescription {
+func mapDeviceDescription(device devices.Device, capabilities []devices.Capability) DeviceDescription {
 	return DeviceDescription{
 		ID:           device.ID,
 		Name:         device.Name,
 		StatusInfo:   StatusInfo{Reportable: false},
 		Type:         mapDeviceType(device.Type),
-		Capabilities: MapCapabilityDescriptions(capabilities),
+		Capabilities: mapCapabilityDescriptions(capabilities),
 	}
 }
 
-func MapDeviceState(deviceID string, capabilities []devices.Capability) DeviceState {
+func mapDeviceState(deviceID string, capabilities []devices.Capability) DeviceState {
 	return DeviceState{
 		ID:           deviceID,
-		Capabilities: MapCapabilityStates(capabilities),
+		Capabilities: mapCapabilityStates(capabilities),
 	}
 }
 

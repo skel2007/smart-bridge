@@ -19,7 +19,6 @@ func TestRequestIDResponseJSON(t *testing.T) {
 }
 
 func TestDevicesResponseJSON(t *testing.T) {
-	randomAccess := true
 	response := DevicesResponse{
 		RequestID: "request-1",
 		Payload: DevicesPayload{
@@ -48,7 +47,7 @@ func TestDevicesResponseJSON(t *testing.T) {
 							Parameters: RangeParameters{
 								Instance:     "brightness",
 								Unit:         "unit.percent",
-								RandomAccess: &randomAccess,
+								RandomAccess: new(true),
 								Range:        &ValueRange{Min: 0, Max: 100, Precision: 1},
 							},
 						},

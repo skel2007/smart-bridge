@@ -19,29 +19,23 @@ const (
 	unitPercent = "unit.percent"
 )
 
-func MapCapabilityDescriptions(capabilities []devices.Capability) []CapabilityDescription {
+func mapCapabilityDescriptions(capabilities []devices.Capability) []CapabilityDescription {
 	descriptions := make([]CapabilityDescription, 0, len(capabilities))
 	colorDescription := ColorSettingParameters{}
 
 	for _, capability := range capabilities {
 		switch capability.Instance {
 		case devices.CapabilityInstancePower:
-			descriptions = append(descriptions, CapabilityDescription{
-				Type:        capabilityTypeOnOff,
-				Retrievable: true,
-				Reportable:  false,
-			})
+			descriptions = append(descriptions, newCapabilityDescription(capabilityTypeOnOff, nil))
 		case devices.CapabilityInstanceBrightness:
-			descriptions = append(descriptions, CapabilityDescription{
-				Type:        capabilityTypeRange,
-				Retrievable: true,
-				Reportable:  false,
-				Parameters: RangeParameters{
+			descriptions = append(descriptions, newCapabilityDescription(
+				capabilityTypeRange,
+				RangeParameters{
 					Instance: capabilityInstanceBrightness,
 					Unit:     unitPercent,
 					Range:    mapRange(capability.Range),
 				},
-			})
+			))
 		case devices.CapabilityInstanceColor:
 			colorDescription.ColorModel = capabilityInstanceHSV
 		case devices.CapabilityInstanceColorTemperatureLevel:
@@ -53,18 +47,13 @@ func MapCapabilityDescriptions(capabilities []devices.Capability) []CapabilityDe
 	}
 
 	if colorDescription.ColorModel != "" || colorDescription.Temperature != nil {
-		descriptions = append(descriptions, CapabilityDescription{
-			Type:        capabilityTypeColorSetting,
-			Retrievable: true,
-			Reportable:  false,
-			Parameters:  colorDescription,
-		})
+		descriptions = append(descriptions, newCapabilityDescription(capabilityTypeColorSetting, colorDescription))
 	}
 
 	return descriptions
 }
 
-func MapCapabilityStates(capabilities []devices.Capability) []CapabilityState {
+func mapCapabilityStates(capabilities []devices.Capability) []CapabilityState {
 	states := make([]CapabilityState, 0, len(capabilities))
 
 	for _, capability := range capabilities {
@@ -117,6 +106,15 @@ func MapCapabilityStates(capabilities []devices.Capability) []CapabilityState {
 	}
 
 	return states
+}
+
+func newCapabilityDescription(capabilityType string, parameters any) CapabilityDescription {
+	return CapabilityDescription{
+		Type:        capabilityType,
+		Retrievable: true,
+		Reportable:  false,
+		Parameters:  parameters,
+	}
 }
 
 func mapRange(capability *devices.RangeCapability) *ValueRange {

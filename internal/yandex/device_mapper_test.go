@@ -9,7 +9,7 @@ import (
 )
 
 func TestMapDeviceDescription(t *testing.T) {
-	description := MapDeviceDescription(
+	description := mapDeviceDescription(
 		devices.Device{
 			ID:     "light-1",
 			Name:   "Desk light",
@@ -95,7 +95,7 @@ func TestMapDeviceDescriptionMapsKnownDeviceTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			description := MapDeviceDescription(
+			description := mapDeviceDescription(
 				devices.Device{ID: "device-1", Name: "Device", Type: tt.deviceType},
 				nil,
 			)
