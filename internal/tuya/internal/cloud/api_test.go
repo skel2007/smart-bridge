@@ -91,7 +91,7 @@ func TestAPIRefreshesExpiredAccessToken(t *testing.T) {
 	statusURI := "/v1.0/devices/device-id/status"
 	now := time.Unix(1700000000, 0)
 	api, recorder := newTestAPI(t,
-		get(tokenURI, tuyaToken("access-token", "refresh-token", 120)),
+		get(tokenURI, tuyaToken("access-token", "test-refresh-secret", 120)),
 		get(refreshTokenURI, tuyaToken("fresh-access-token", "fresh-refresh-token", 120)),
 		get(statusURI, tuyaResult(`[]`), tuyaResult(`[]`)),
 	)
@@ -121,7 +121,7 @@ func TestAPIFallsBackToNewTokenWhenRefreshFails(t *testing.T) {
 	now := time.Unix(1700000000, 0)
 	api, recorder := newTestAPI(t,
 		get(tokenURI,
-			tuyaToken("access-token", "refresh-token", 120),
+			tuyaToken("access-token", "test-refresh-secret", 120),
 			tuyaToken("fallback-access-token", "fallback-refresh-token", 120),
 		),
 		get(refreshTokenURI, tuyaError(http.StatusOK, "1010", "token expired")),

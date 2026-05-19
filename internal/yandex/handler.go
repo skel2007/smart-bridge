@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -22,16 +23,32 @@ type Handler struct {
 	gateway     devices.DeviceGateway
 	userID      string
 	bearerToken string
+	logger      *slog.Logger
 	mux         *http.ServeMux
 }
 
-func NewHandler(gateway devices.DeviceGateway, userID string, bearerToken string) *Handler {
+type Option func(*Handler)
+
+func WithLogger(logger *slog.Logger) Option {
+	return func(handler *Handler) {
+		if logger != nil {
+			handler.logger = logger
+		}
+	}
+}
+
+func NewHandler(gateway devices.DeviceGateway, userID string, bearerToken string, options ...Option) *Handler {
 	handler := &Handler{
 		gateway:     gateway,
 		userID:      userID,
 		bearerToken: bearerToken,
+		logger:      slog.New(slog.DiscardHandler),
 		mux:         http.NewServeMux(),
 	}
+	for _, option := range options {
+		option(handler)
+	}
+
 	handler.mux.HandleFunc("HEAD /v1.0/{$}", handler.serveRoot)
 	handler.mux.HandleFunc("POST /v1.0/user/unlink", handler.serveUnlink)
 	handler.mux.HandleFunc("GET /v1.0/user/devices", handler.serveDevices)
@@ -75,6 +92,7 @@ func (handler *Handler) serveUnlink(w http.ResponseWriter, r *http.Request) {
 func (handler *Handler) serveDevices(w http.ResponseWriter, r *http.Request) {
 	deviceList, err := handler.gateway.ListDevices(r.Context())
 	if err != nil {
+		handler.logRequest(r, slog.LevelWarn, "list yandex devices failed", "error", err)
 		http.Error(w, "list devices failed", http.StatusInternalServerError)
 		return
 	}
@@ -83,6 +101,10 @@ func (handler *Handler) serveDevices(w http.ResponseWriter, r *http.Request) {
 	for _, device := range deviceList {
 		capabilities, err := handler.gateway.ListCapabilities(r.Context(), device.ID)
 		if err != nil {
+			handler.logRequest(r, slog.LevelWarn, "load yandex device capabilities failed",
+				"device_id", device.ID,
+				"error", err,
+			)
 			continue
 		}
 
@@ -106,6 +128,7 @@ func (handler *Handler) serveDevicesQuery(w http.ResponseWriter, r *http.Request
 
 	deviceList, err := handler.gateway.ListDevices(r.Context())
 	if err != nil {
+		handler.logRequest(r, slog.LevelWarn, "query yandex devices failed", "error", err)
 		http.Error(w, "list devices failed", http.StatusInternalServerError)
 		return
 	}
@@ -114,12 +137,14 @@ func (handler *Handler) serveDevicesQuery(w http.ResponseWriter, r *http.Request
 	states := make([]DeviceState, 0, len(request.Devices))
 	for _, requestedDevice := range request.Devices {
 		if _, ok := knownDeviceIDs[requestedDevice.ID]; !ok {
+			handler.logDeviceError(r, requestedDevice.ID, errorCodeDeviceNotFound, "query requested unknown device", nil)
 			states = append(states, newDeviceStateError(requestedDevice.ID, errorCodeDeviceNotFound, "device not found"))
 			continue
 		}
 
 		capabilities, err := handler.gateway.ListCapabilities(r.Context(), requestedDevice.ID)
 		if err != nil {
+			handler.logDeviceError(r, requestedDevice.ID, errorCodeDeviceUnreachable, "query yandex device capabilities failed", err)
 			states = append(states, newDeviceStateError(requestedDevice.ID, errorCodeDeviceUnreachable, "device is unreachable"))
 			continue
 		}
@@ -143,6 +168,7 @@ func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Reques
 
 	deviceList, err := handler.gateway.ListDevices(r.Context())
 	if err != nil {
+		handler.logRequest(r, slog.LevelWarn, "prepare yandex device action failed", "error", err)
 		http.Error(w, "list devices failed", http.StatusInternalServerError)
 		return
 	}
@@ -151,6 +177,7 @@ func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Reques
 	results := make([]DeviceActionResult, 0, len(request.Payload.Devices))
 	for _, deviceAction := range request.Payload.Devices {
 		if _, ok := knownDeviceIDs[deviceAction.ID]; !ok {
+			handler.logDeviceError(r, deviceAction.ID, errorCodeDeviceNotFound, "action requested unknown device", nil)
 			results = append(results, newDeviceActionError(deviceAction.ID, errorCodeDeviceNotFound, "device not found"))
 			continue
 		}
@@ -158,15 +185,18 @@ func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Reques
 		commands, err := mapDeviceActionCommands(deviceAction)
 		if err != nil {
 			if mappingErr, ok := errors.AsType[actionMappingError](err); ok {
+				handler.logDeviceError(r, deviceAction.ID, mappingErr.Code, "map yandex device action failed", err)
 				results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(mappingErr.Code, mappingErr.Message)))
 				continue
 			}
 
+			handler.logDeviceError(r, deviceAction.ID, errorCodeInvalidValue, "map yandex device action failed", err)
 			results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(errorCodeInvalidValue, err.Error())))
 			continue
 		}
 
 		if err := handler.gateway.SendCommands(r.Context(), deviceAction.ID, commands); err != nil {
+			handler.logDeviceError(r, deviceAction.ID, errorCodeDeviceUnreachable, "send yandex device action failed", err)
 			results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(errorCodeDeviceUnreachable, "device is unreachable")))
 			continue
 		}
@@ -218,6 +248,27 @@ func newDeviceStateError(deviceID string, code string, message string) DeviceSta
 		ErrorCode:    code,
 		ErrorMessage: message,
 	}
+}
+
+func (handler *Handler) logDeviceError(r *http.Request, deviceID string, code string, message string, err error) {
+	attrs := []any{
+		"device_id", deviceID,
+		"error_code", code,
+	}
+	if err != nil {
+		attrs = append(attrs, "error", err)
+	}
+
+	handler.logRequest(r, slog.LevelDebug, message, attrs...)
+}
+
+func (handler *Handler) logRequest(r *http.Request, level slog.Level, message string, attrs ...any) {
+	attrs = append([]any{
+		"endpoint", r.URL.Path,
+		"request_id", r.Header.Get(headerRequestID),
+	}, attrs...)
+
+	handler.logger.Log(r.Context(), level, message, attrs...)
 }
 
 func newDeviceActionError(deviceID string, code string, message string) DeviceActionResult {

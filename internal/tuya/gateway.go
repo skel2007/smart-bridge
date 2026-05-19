@@ -3,6 +3,7 @@ package tuya
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 	"github.com/skel2007/smart-bridge/internal/tuya/internal/cloud"
@@ -12,6 +13,20 @@ type Credentials struct {
 	Endpoint     string
 	ClientID     string
 	ClientSecret string
+}
+
+type Option func(*gatewayOptions)
+
+type gatewayOptions struct {
+	logger *slog.Logger
+}
+
+func WithLogger(logger *slog.Logger) Option {
+	return func(options *gatewayOptions) {
+		if logger != nil {
+			options.logger = logger
+		}
+	}
 }
 
 type Gateway struct {
@@ -25,12 +40,17 @@ type cloudAPI interface {
 	SendCommands(ctx context.Context, deviceID string, commands []cloud.Command) error
 }
 
-func NewGateway(credentials Credentials) *Gateway {
+func NewGateway(credentials Credentials, options ...Option) *Gateway {
+	var gatewayOptions gatewayOptions
+	for _, option := range options {
+		option(&gatewayOptions)
+	}
+
 	return newGateway(cloud.NewAPI(cloud.Credentials{
 		Endpoint:     credentials.Endpoint,
 		ClientID:     credentials.ClientID,
 		ClientSecret: credentials.ClientSecret,
-	}))
+	}, gatewayOptions.logger))
 }
 
 func newGateway(api cloudAPI) *Gateway {

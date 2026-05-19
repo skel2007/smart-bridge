@@ -13,11 +13,11 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 )
 
-func (api *API) do(ctx context.Context, method, path string, query url.Values, body []byte, accessToken string, out any) error {
+func (api *API) do(ctx context.Context, method, path string, route string, query url.Values, body []byte, accessToken string, out any) error {
 	canonical := canonicalURL(path, query)
 	requestURL := api.credentials.Endpoint + canonical
 
-	req, err := retryablehttp.NewRequestWithContext(ctx, method, requestURL, body)
+	req, err := retryablehttp.NewRequestWithContext(withRoute(ctx, route), method, requestURL, body)
 	if err != nil {
 		return fmt.Errorf("create tuya request: %w", err)
 	}

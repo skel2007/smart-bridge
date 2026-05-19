@@ -3,6 +3,7 @@ package cloud
 import (
 	"bytes"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -13,7 +14,7 @@ import (
 
 const (
 	tokenURI          = "/v1.0/token?grant_type=1"
-	refreshTokenURI   = "/v1.0/token/refresh-token"
+	refreshTokenURI   = "/v1.0/token/test-refresh-secret"
 	devicesURI        = "/v2.0/cloud/thing/device?page_size=20"
 	deviceCommandsURI = "/v1.0/devices/device-id/commands"
 )
@@ -50,6 +51,10 @@ func post(uri string, responses ...testResponse) testRoute {
 }
 
 func newTestAPI(t *testing.T, routes ...testRoute) (*API, *requestRecorder) {
+	return newTestAPIWithLogger(t, nil, routes...)
+}
+
+func newTestAPIWithLogger(t *testing.T, logger *slog.Logger, routes ...testRoute) (*API, *requestRecorder) {
 	t.Helper()
 
 	recorder := &requestRecorder{
@@ -67,7 +72,7 @@ func newTestAPI(t *testing.T, routes ...testRoute) (*API, *requestRecorder) {
 		Endpoint:     server.URL,
 		ClientID:     "client",
 		ClientSecret: "super-secret",
-	})
+	}, logger)
 	api.now = func() time.Time {
 		return time.UnixMilli(1700000000000)
 	}
@@ -86,7 +91,7 @@ func (recorder *requestRecorder) ServeHTTP(w http.ResponseWriter, req *http.Requ
 
 	response, ok := recorder.nextResponse(req)
 	if !ok {
-		http.Error(w, "unexpected request", http.StatusInternalServerError)
+		http.Error(w, "unexpected request", http.StatusBadRequest)
 		return
 	}
 

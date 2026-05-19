@@ -1,9 +1,11 @@
 package cloud
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -22,7 +24,7 @@ func TestDoSignsRequestHeaders(t *testing.T) {
 	query.Set("grant_type", "1")
 
 	var result tokenResult
-	err := api.do(context.Background(), http.MethodGet, tokenPath, query, nil, "", &result)
+	err := api.do(context.Background(), http.MethodGet, tokenPath, tokenPath, query, nil, "", &result)
 
 	require.NoError(t, err)
 	require.Equal(t, "access-token", result.AccessToken)
@@ -54,7 +56,7 @@ func TestDoRetriesRetryableHTTPStatusWithFreshSignature(t *testing.T) {
 	query.Set("grant_type", "1")
 
 	var result tokenResult
-	err := api.do(context.Background(), http.MethodGet, tokenPath, query, nil, "", &result)
+	err := api.do(context.Background(), http.MethodGet, tokenPath, tokenPath, query, nil, "", &result)
 
 	require.NoError(t, err)
 	require.Equal(t, "access-token", result.AccessToken)
@@ -80,7 +82,7 @@ func TestDoStopsRetryingAfterMaxAttempts(t *testing.T) {
 	query.Set("grant_type", "1")
 
 	var result tokenResult
-	err := api.do(context.Background(), http.MethodGet, tokenPath, query, nil, "", &result)
+	err := api.do(context.Background(), http.MethodGet, tokenPath, tokenPath, query, nil, "", &result)
 
 	var apiErr *APIError
 	require.True(t, errors.As(err, &apiErr))
@@ -101,10 +103,34 @@ func TestDoSetsAccessTokenHeader(t *testing.T) {
 	query.Set("page_size", "20")
 
 	var result []Device
-	err := api.do(context.Background(), http.MethodGet, projectDevices, query, nil, "access-token", &result)
+	err := api.do(context.Background(), http.MethodGet, projectDevices, projectDevices, query, nil, "access-token", &result)
 
 	require.NoError(t, err)
 	require.Equal(t, "access-token", recorder.request(0).Header.Get("access_token"))
+}
+
+func TestDoLogsEachHTTPAttemptWithoutSecrets(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	api, recorder := newTestAPIWithLogger(t, logger,
+		get(refreshTokenURI,
+			retryableTuyaError(http.StatusServiceUnavailable, "SYSTEM_ERROR", "try later"),
+			tuyaToken("access-token", "refresh-token", 7200),
+		),
+	)
+
+	var result tokenResult
+	err := api.do(context.Background(), http.MethodGet, refreshTokenURI, refreshTokenRoute, nil, nil, "", &result)
+
+	require.NoError(t, err)
+	require.Equal(t, "access-token", result.AccessToken)
+	require.Equal(t, 2, recorder.requestCount())
+
+	logText := logs.String()
+	require.Contains(t, logText, "/v1.0/token/{refresh_token}")
+	require.Contains(t, logText, `"status_code":503`)
+	require.Contains(t, logText, `"status_code":200`)
+	require.NotContains(t, logText, "test-refresh-secret")
 }
 
 func TestSignRequestPreservesBodyWithoutGetBody(t *testing.T) {

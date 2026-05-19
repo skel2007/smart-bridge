@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,13 +18,17 @@ import (
 )
 
 const (
-	tokenPath                = "/v1.0/token"
-	refreshTokenPath         = "/v1.0/token/%s"
-	projectDevices           = "/v2.0/cloud/thing/device"
-	deviceSpecificationsPath = "/v1.0/devices/%s/specifications"
-	deviceStatusPath         = "/v1.0/devices/%s/status"
-	deviceCommandsPath       = "/v1.0/devices/%s/commands"
-	listPageSize             = 20
+	tokenPath                 = "/v1.0/token"
+	refreshTokenPath          = "/v1.0/token/%s"
+	refreshTokenRoute         = "/v1.0/token/{refresh_token}"
+	projectDevices            = "/v2.0/cloud/thing/device"
+	deviceSpecificationsPath  = "/v1.0/devices/%s/specifications"
+	deviceSpecificationsRoute = "/v1.0/devices/{device_id}/specifications"
+	deviceStatusPath          = "/v1.0/devices/%s/status"
+	deviceStatusRoute         = "/v1.0/devices/{device_id}/status"
+	deviceCommandsPath        = "/v1.0/devices/%s/commands"
+	deviceCommandsRoute       = "/v1.0/devices/{device_id}/commands"
+	listPageSize              = 20
 )
 
 const defaultHTTPTimeout = 10 * time.Second
@@ -54,7 +59,11 @@ func (token tokenState) valid(now time.Time) bool {
 	return token.accessToken != "" && now.Add(tokenRefreshMargin).Before(token.expiresAt)
 }
 
-func NewAPI(credentials Credentials) *API {
+func NewAPI(credentials Credentials, logger *slog.Logger) *API {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
 	api := &API{
 		credentials: credentials,
 		transport:   retryablehttp.NewClient(),
@@ -64,6 +73,12 @@ func NewAPI(credentials Credentials) *API {
 
 	api.credentials.Endpoint = strings.TrimRight(api.credentials.Endpoint, "/")
 	api.transport.HTTPClient.Timeout = defaultHTTPTimeout
+	api.transport.HTTPClient.Transport = &loggingRoundTripper{
+		next:   api.transport.HTTPClient.Transport,
+		logger: logger,
+	}
+	// Do not pass the logger to retryablehttp.Logger: Tuya refresh tokens live in URL paths,
+	// and retryablehttp only redacts userinfo passwords from URLs.
 	api.transport.Logger = nil
 	api.transport.ErrorHandler = retryablehttp.PassthroughErrorHandler
 	// Tuya signs the timestamp and nonce, so every retry attempt needs a fresh signature.
@@ -112,7 +127,7 @@ func (api *API) listProjectDevicesPage(ctx context.Context, lastID string) ([]De
 	}
 
 	var result []Device
-	if err := api.do(ctx, http.MethodGet, projectDevices, query, nil, accessToken, &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, projectDevices, projectDevices, query, nil, accessToken, &result); err != nil {
 		return nil, err
 	}
 
@@ -128,7 +143,7 @@ func (api *API) GetDeviceSpecifications(ctx context.Context, deviceID string) (D
 	path := fmt.Sprintf(deviceSpecificationsPath, url.PathEscape(deviceID))
 
 	var result DeviceSpecifications
-	if err := api.do(ctx, http.MethodGet, path, nil, nil, accessToken, &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, path, deviceSpecificationsRoute, nil, nil, accessToken, &result); err != nil {
 		return DeviceSpecifications{}, err
 	}
 
@@ -144,7 +159,7 @@ func (api *API) GetDeviceStatus(ctx context.Context, deviceID string) ([]DeviceS
 	path := fmt.Sprintf(deviceStatusPath, url.PathEscape(deviceID))
 
 	var result []DeviceStatus
-	if err := api.do(ctx, http.MethodGet, path, nil, nil, accessToken, &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, path, deviceStatusRoute, nil, nil, accessToken, &result); err != nil {
 		return nil, err
 	}
 
@@ -164,7 +179,7 @@ func (api *API) SendCommands(ctx context.Context, deviceID string, commands []Co
 
 	path := fmt.Sprintf(deviceCommandsPath, url.PathEscape(deviceID))
 
-	return api.do(ctx, http.MethodPost, path, nil, body, accessToken, nil)
+	return api.do(ctx, http.MethodPost, path, deviceCommandsRoute, nil, body, accessToken, nil)
 }
 
 func (api *API) ensureAccessToken(ctx context.Context) (string, error) {
@@ -197,7 +212,7 @@ func (api *API) requestAccessToken(ctx context.Context, now time.Time) error {
 	query.Set("grant_type", "1")
 
 	var result tokenResult
-	if err := api.do(ctx, http.MethodGet, tokenPath, query, nil, "", &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, tokenPath, tokenPath, query, nil, "", &result); err != nil {
 		return err
 	}
 
@@ -208,7 +223,7 @@ func (api *API) refreshAccessToken(ctx context.Context, now time.Time) error {
 	path := fmt.Sprintf(refreshTokenPath, url.PathEscape(api.token.refreshToken))
 
 	var result tokenResult
-	if err := api.do(ctx, http.MethodGet, path, nil, nil, "", &result); err != nil {
+	if err := api.do(ctx, http.MethodGet, path, refreshTokenRoute, nil, nil, "", &result); err != nil {
 		return err
 	}
 
