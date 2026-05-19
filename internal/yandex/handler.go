@@ -83,8 +83,7 @@ func (handler *Handler) serveDevices(w http.ResponseWriter, r *http.Request) {
 	for _, device := range deviceList {
 		capabilities, err := handler.gateway.ListCapabilities(r.Context(), device.ID)
 		if err != nil {
-			http.Error(w, "list capabilities failed", http.StatusInternalServerError)
-			return
+			continue
 		}
 
 		descriptions = append(descriptions, MapDeviceDescription(device, capabilities))

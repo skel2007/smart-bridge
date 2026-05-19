@@ -56,7 +56,7 @@ Do not expose Yandex properties in the first implementation. The domain model ha
 
 Set capability `retrievable=true` and `reportable=false`. Set device-level `status_info.reportable=false`. `reportable=true` requires a state notification mechanism, such as upstream push events or polling with stored last-known state and Yandex notification delivery; a current `Device.Online` value is not enough.
 
-Do not hide offline devices from `/devices` if the upstream device list still includes them. If current state cannot be read, `/query` returns a device-level error for that device and continues returning other devices. If `/action` mapping or upstream sending fails for a device, mark all actions for that device as failed. Do not attempt partial success inside one device in the first implementation.
+Do not hide offline devices from `/devices` if the upstream device list still includes them and their capability description can be loaded. If a single device's capability description cannot be loaded for `/devices`, omit that device from the discovery response and continue returning other devices; Yandex Smart Home leaves unavailable devices unchanged and only the user can delete them. If current state cannot be read, `/query` returns a device-level error for that device and continues returning other devices. If `/action` mapping or upstream sending fails for a device, mark all actions for that device as failed. Do not attempt partial success inside one device in the first implementation.
 
 Use this minimal error policy:
 

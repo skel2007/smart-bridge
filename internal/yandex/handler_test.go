@@ -135,44 +135,63 @@ func TestHandlerDevices(t *testing.T) {
 	require.Equal(t, []string{"light-1"}, gateway.listCapabilityCalls)
 }
 
-func TestHandlerDevicesReturnsRequestLevelErrors(t *testing.T) {
-	tests := []struct {
-		name       string
-		gateway    *fakeGateway
-		wantStatus int
-	}{
-		{
-			name: "list devices fails",
-			gateway: &fakeGateway{
-				listDevicesErr: errors.New("upstream unavailable"),
-			},
-			wantStatus: http.StatusInternalServerError,
+func TestHandlerDevicesReturnsRequestLevelError(t *testing.T) {
+	gateway := &fakeGateway{
+		listDevicesErr: errors.New("upstream unavailable"),
+	}
+	handler := newTestHandler(gateway)
+	request := newHandlerRequest(http.MethodGet, "/v1.0/user/devices", "")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusInternalServerError, response.Code)
+}
+
+func TestHandlerDevicesSkipsDevicesWhenCapabilitiesCannotBeLoaded(t *testing.T) {
+	gateway := &fakeGateway{
+		devices: []devices.Device{
+			{ID: "light-1", Name: "Desk light", Type: devices.DeviceTypeLight},
+			{ID: "light-2", Name: "Floor light", Type: devices.DeviceTypeLight},
 		},
-		{
-			name: "list capabilities fails",
-			gateway: &fakeGateway{
-				devices: []devices.Device{
-					{ID: "light-1", Name: "Desk light", Type: devices.DeviceTypeLight},
-				},
-				capabilityErrors: map[string]error{
-					"light-1": errors.New("upstream unavailable"),
-				},
-			},
-			wantStatus: http.StatusInternalServerError,
+		capabilities: map[string][]devices.Capability{
+			"light-2": {devices.NewOnOffCapability(devices.CapabilityInstancePower, true)},
+		},
+		capabilityErrors: map[string]error{
+			"light-1": errors.New("upstream unavailable"),
 		},
 	}
+	handler := newTestHandler(gateway)
+	request := newHandlerRequest(http.MethodGet, "/v1.0/user/devices", "")
+	response := httptest.NewRecorder()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			handler := newTestHandler(tt.gateway)
-			request := newHandlerRequest(http.MethodGet, "/v1.0/user/devices", "")
-			response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
 
-			handler.ServeHTTP(response, request)
-
-			require.Equal(t, tt.wantStatus, response.Code)
-		})
-	}
+	require.Equal(t, http.StatusOK, response.Code)
+	require.JSONEq(t, `{
+		"request_id": "request-1",
+		"payload": {
+			"user_id": "bridge-user",
+			"devices": [
+				{
+					"id": "light-2",
+					"name": "Floor light",
+					"type": "devices.types.light",
+					"status_info": {
+						"reportable": false
+					},
+					"capabilities": [
+						{
+							"type": "devices.capabilities.on_off",
+							"retrievable": true,
+							"reportable": false
+						}
+					]
+				}
+			]
+		}
+	}`, response.Body.String())
+	require.Equal(t, []string{"light-1", "light-2"}, gateway.listCapabilityCalls)
 }
 
 func TestHandlerDevicesQueryReturnsPerDeviceErrors(t *testing.T) {
