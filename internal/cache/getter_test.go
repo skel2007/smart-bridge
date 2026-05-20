@@ -111,6 +111,58 @@ func TestMemoizedGetterWaiterCanCancelDuringConcurrentMiss(t *testing.T) {
 	require.NoError(t, <-firstErr)
 }
 
+func TestMemoizedGetterLeaderCancellationDoesNotCancelWaiter(t *testing.T) {
+	underlying := newCancelAwareGetter(42)
+	cache := NewMemoizedGetter(underlying.get)
+
+	leaderCtx, cancelLeader := context.WithCancel(context.Background())
+	leaderErr := make(chan error, 1)
+	go func() {
+		_, err := cache.Get(leaderCtx, "key")
+		leaderErr <- err
+	}()
+	underlying.waitForBlockedCall(t)
+
+	waiterResult := make(chan struct {
+		value int
+		err   error
+	}, 1)
+	go func() {
+		value, err := cache.Get(context.Background(), "key")
+		waiterResult <- struct {
+			value int
+			err   error
+		}{value: value, err: err}
+	}()
+
+	cancelLeader()
+	require.ErrorIs(t, <-leaderErr, context.Canceled)
+
+	underlying.release()
+	result := <-waiterResult
+	require.NoError(t, result.err)
+	require.Equal(t, 42, result.value)
+	require.Equal(t, 1, underlying.callCount())
+}
+
+func TestMemoizedGetterFetchContextPreservesLeaderDeadline(t *testing.T) {
+	deadlineSeen := make(chan bool, 1)
+	cache := NewMemoizedGetter(func(ctx context.Context, _ string) (int, error) {
+		_, ok := ctx.Deadline()
+		deadlineSeen <- ok
+		<-ctx.Done()
+
+		return 0, ctx.Err()
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancel()
+
+	_, err := cache.Get(ctx, "key")
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.True(t, <-deadlineSeen)
+}
+
 type recordingGetter[V any] struct {
 	mu sync.Mutex
 
@@ -121,6 +173,60 @@ type recordingGetter[V any] struct {
 	started     chan struct{}
 	startedOnce sync.Once
 	releaseCh   chan struct{}
+}
+
+type cancelAwareGetter[V any] struct {
+	mu        sync.Mutex
+	value     V
+	calls     int
+	started   chan struct{}
+	releaseCh chan struct{}
+}
+
+func newCancelAwareGetter[V any](value V) *cancelAwareGetter[V] {
+	return &cancelAwareGetter[V]{
+		value:     value,
+		started:   make(chan struct{}),
+		releaseCh: make(chan struct{}),
+	}
+}
+
+func (getter *cancelAwareGetter[V]) get(ctx context.Context, _ string) (V, error) {
+	getter.mu.Lock()
+	getter.calls++
+	if getter.calls == 1 {
+		close(getter.started)
+	}
+	getter.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		var zero V
+		return zero, ctx.Err()
+	case <-getter.releaseCh:
+		return getter.value, nil
+	}
+}
+
+func (getter *cancelAwareGetter[V]) waitForBlockedCall(t *testing.T) {
+	t.Helper()
+
+	select {
+	case <-getter.started:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for blocked getter call")
+	}
+}
+
+func (getter *cancelAwareGetter[V]) release() {
+	close(getter.releaseCh)
+}
+
+func (getter *cancelAwareGetter[V]) callCount() int {
+	getter.mu.Lock()
+	defer getter.mu.Unlock()
+
+	return getter.calls
 }
 
 func (getter *recordingGetter[V]) get(_ context.Context, key string) (V, error) {

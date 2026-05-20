@@ -28,11 +28,14 @@ func (cache *MemoizedGetter[V]) Get(ctx context.Context, key string) (V, error) 
 	}
 
 	resultCh := cache.group.DoChan(key, func() (any, error) {
+		fetchCtx, cancel := withoutCancelPreservingDeadline(ctx)
+		defer cancel()
+
 		if value, ok := cache.lookup(key); ok {
 			return value, nil
 		}
 
-		value, err := cache.get(ctx, key)
+		value, err := cache.get(fetchCtx, key)
 		if err != nil {
 			return nil, err
 		}
@@ -53,6 +56,15 @@ func (cache *MemoizedGetter[V]) Get(ctx context.Context, key string) (V, error) 
 		var zero V
 		return zero, ctx.Err()
 	}
+}
+
+func withoutCancelPreservingDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
+	fetchCtx := context.WithoutCancel(ctx)
+	if deadline, ok := ctx.Deadline(); ok {
+		return context.WithDeadline(fetchCtx, deadline)
+	}
+
+	return fetchCtx, func() {}
 }
 
 func (cache *MemoizedGetter[V]) lookup(key string) (V, bool) {
