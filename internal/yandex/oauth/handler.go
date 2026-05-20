@@ -148,7 +148,8 @@ func (handler *Handler) writeOAuthTokenResponse(w http.ResponseWriter, scope str
 func (handler *Handler) oauthClientAuthorized(r *http.Request) bool {
 	clientID, clientSecret, ok := r.BasicAuth()
 	if !ok {
-		return false
+		clientID = r.Form.Get("client_id")
+		clientSecret = r.Form.Get("client_secret")
 	}
 
 	return handler.oauthClientIDMatches(clientID) && hmac.Equal([]byte(clientSecret), []byte(handler.cfg.ClientSecret))

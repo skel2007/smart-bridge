@@ -90,9 +90,15 @@ func newAuthorizeRequest(params ...string) *http.Request {
 }
 
 func newTokenRequest(params ...string) *http.Request {
+	request := newTokenRequestWithoutBasicAuth(params...)
+	request.SetBasicAuth("smart-bridge", "client-secret")
+
+	return request
+}
+
+func newTokenRequestWithoutBasicAuth(params ...string) *http.Request {
 	request := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(encodeForm(params...)))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	request.SetBasicAuth("smart-bridge", "client-secret")
 
 	return request
 }

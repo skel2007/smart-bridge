@@ -78,6 +78,22 @@ func TestOAuthTokenRefreshesAccessToken(t *testing.T) {
 	requireAccessTokenResponse(t, response, "devices")
 }
 
+func TestOAuthTokenAcceptsFormClientCredentials(t *testing.T) {
+	handler := newTestHandler()
+	refreshToken := newTestRefreshToken(t, handler.issuer)
+	request := newTokenRequestWithoutBasicAuth(
+		"grant_type=refresh_token",
+		"refresh_token="+refreshToken,
+		"client_id=smart-bridge",
+		"client_secret=client-secret",
+	)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	requireAccessTokenResponse(t, response, "devices")
+}
+
 func TestOAuthTokenValidatesGrant(t *testing.T) {
 	tests := []struct {
 		name string
@@ -133,8 +149,8 @@ func TestOAuthTokenRequiresBasicAuth(t *testing.T) {
 			basicPass: "wrong-secret",
 		},
 		{
-			name: "form credentials without Basic",
-			body: "grant_type=refresh_token&refresh_token=token&client_id=smart-bridge&client_secret=client-secret",
+			name: "wrong form secret",
+			body: "grant_type=refresh_token&refresh_token=token&client_id=smart-bridge&client_secret=wrong-secret",
 		},
 	}
 
