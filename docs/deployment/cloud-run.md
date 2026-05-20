@@ -131,6 +131,15 @@ https://SERVICE_URL/api/yandex/oauth/authorize
 https://SERVICE_URL/api/yandex/oauth/token
 ```
 
+To read the current service URL later:
+
+```sh
+gcloud run services describe "${SERVICE}" \
+  --project "${PROJECT_ID}" \
+  --region "${REGION}" \
+  --format "value(status.url)"
+```
+
 ## Smoke checks
 
 ```sh

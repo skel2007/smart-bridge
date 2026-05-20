@@ -82,9 +82,23 @@ bin/smart-bridge-server --config config.yaml
 
 The server listens on `http.port`. If `http.port` is `0`, the OS chooses an available local port and the actual address is written to JSON logs on stderr.
 
-Yandex requests are mounted under `yandex.path_prefix`. With the default config, the local discovery path is `/api/yandex/v1.0/user/devices`.
+Yandex requests are mounted under `yandex.path_prefix`. With the default config, the local protocol and OAuth paths are:
 
-Before exposing the server outside local development, deploy it behind HTTPS and configure a strong bearer token. Domain name, TLS, DNS, and reverse proxy or load balancer routing are outside smart-bridge.
+```text
+/api/yandex/v1.0/user/devices
+/api/yandex/oauth/authorize
+/api/yandex/oauth/token
+```
+
+The Yandex Smart Home protocol endpoints require `Authorization: Bearer <yandex.bearer_token>`. The OAuth compatibility endpoints use `yandex.oauth.client_id` and `yandex.oauth.client_secret` for account linking and return the configured bearer token as `access_token`.
+
+Before exposing the server outside local development, deploy it behind HTTPS and configure strong bearer and OAuth client secrets. Domain name, TLS, DNS, and reverse proxy or load balancer routing are outside smart-bridge.
+
+## Documentation
+
+- [Tuya Smart Life integration](docs/integrations/tuya.md)
+- [Cloud Run deployment](docs/deployment/cloud-run.md)
+- [Yandex Smart Home integration](docs/integrations/yandex.md)
 
 ## Development
 
