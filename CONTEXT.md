@@ -51,9 +51,9 @@ _Avoid_: public provider, multi-tenant service
 - A **Device** is a summary loaded from upstream device listing APIs.
 - **Capabilities** and **Properties** are loaded separately for a known **Device** when additional upstream reads are needed.
 - Tuya is the first **Upstream Platform**.
-- Yandex Smart Home API is the first planned **Downstream Platform**.
-- A **Device Type** is mapped from upstream platform categories and later mapped to downstream platform device types.
-- A **Capability** is mapped from upstream platform functions and later mapped to downstream platform capabilities.
+- Yandex Smart Home API is the first **Downstream Platform**.
+- A **Device Type** is mapped from upstream platform categories and then mapped to downstream platform device types.
+- A **Capability** is mapped from upstream platform functions and then mapped to downstream platform capabilities.
 - A **Capability** has a **Capability Type** and a **Capability Instance**.
 - A **Capability Command** targets one **Capability**; the target **Device** identity is provided outside the command.
 - A **Capability Command** carries required typed desired state and does not carry capability parameters.
@@ -64,7 +64,7 @@ _Avoid_: public provider, multi-tenant service
 - Known **Range Capabilities** use vendor-neutral domain scales, not upstream platform scales. For example, `brightness` and `color_temperature_level` are represented as `0..100`.
 - Upstream adapter specifications are used for conversion back to platform commands and are not stored in domain **Capabilities**. See `docs/adr/0001-domain-capabilities-and-vendor-specs.md`.
 - Unknown upstream functions are not **Capabilities** until smart-bridge understands their meaning.
-- A **Property** is mapped from upstream platform statuses and later mapped to downstream platform properties.
+- A **Property** would be mapped from upstream platform statuses and then mapped to downstream platform properties when property support is added.
 - A value that can be changed by a command is a **Capability** state, not a **Property**.
 
 ## Example dialogue

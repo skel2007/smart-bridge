@@ -10,7 +10,7 @@ smart-bridge currently has one Tuya gateway that handles domain-level device ope
 
 smart-bridge has a CLI application layer and a Yandex Smart Home HTTP layer. It may also support upstream platforms beyond Tuya. Those callers should not depend on Tuya-specific DTOs, signing, endpoints, or specification caching details.
 
-Tuya command mapping needs upstream specifications. For example, domain commands such as `power=on` and `brightness=50` must be converted to the correct Tuya function codes and vendor ranges before they can be sent. Re-reading those specifications for every command request is acceptable for the current short-lived CLI, but a future long-running service will likely need caching.
+Tuya command mapping needs upstream specifications. For example, domain commands such as `power=on` and `brightness=50` must be converted to the correct Tuya function codes and vendor ranges before they can be sent. Re-reading those specifications for every command request is acceptable for short-lived CLI commands, while the long-running HTTP service enables Tuya specification caching.
 
 ## Decision
 
@@ -37,7 +37,7 @@ Short-lived CLI commands keep the default no-cache behavior.
 
 CLI and Yandex Smart Home API callers can depend on `devices.DeviceGateway` instead of `tuya.Gateway` when they need a vendor-neutral device source.
 
-The domain model stays free of Tuya-specific metadata. Tuya specifications and any future cache remain inside the Tuya adapter, consistent with ADR 0001.
+The domain model stays free of Tuya-specific metadata. Tuya specifications and the specification cache remain inside the Tuya adapter, consistent with ADR 0001.
 
 The low-level Tuya API layer remains an implementation detail. Transport-level tests exercise request paths, URLs, request bodies, signing headers, retries, and response envelopes inside `internal/tuya/internal/cloud`. Gateway tests use a fake `cloudAPI`.
 

@@ -6,14 +6,14 @@ Accepted.
 
 ## Context
 
-smart-bridge discovers smart-home devices from upstream platforms such as Tuya Cloud and will later expose or control them through downstream integrations.
+smart-bridge discovers and controls smart-home devices from upstream platforms such as Tuya Cloud and exposes known devices through downstream integrations such as Yandex Smart Home.
 
 Upstream platforms use their own device function codes, value ranges, and command payloads. For example, Tuya lights can represent brightness as an integer range such as `10..1000`, while the smart-bridge domain model wants a vendor-neutral `brightness` capability.
 
 The same mapping problem exists in both directions:
 
 - Read path: upstream status values must become domain capability state.
-- Write path: future domain commands must become upstream command payloads.
+- Write path: domain commands must become upstream command payloads.
 
 ## Decision
 
@@ -36,12 +36,12 @@ Adapters may cache upstream specifications. The cache belongs in the adapter or 
 
 ## Consequences
 
-The domain model stays vendor-neutral and can be reused by CLI, future HTTP API, and downstream integrations.
+The domain model stays vendor-neutral and can be reused by CLI, HTTP service, and downstream integrations.
 
 Write operations must not try to reverse-map from a domain capability alone. They need access to the relevant upstream specification or a cached adapter-specific command descriptor.
 
 Command validation can check domain invariants such as known capability instances, payload shape, and normalized value ranges. Adapter-specific validation still needs the upstream specification, for example to check allowed modes or convert normalized ranges to device ranges.
 
-For a short-lived CLI process, reading specifications during a command is acceptable. For a future long-running HTTP service, caching specifications in the adapter/service layer should avoid repeated upstream API calls.
+For a short-lived CLI process, reading specifications during a command is acceptable. For the long-running HTTP service, caching specifications in the adapter or service layer avoids repeated upstream API calls.
 
-If an upstream device specification changes, cached specifications must eventually refresh. The initial implementation can use process-lifetime caching or no caching; a future HTTP service should choose an explicit TTL or invalidation strategy.
+If an upstream device specification changes, cached specifications must eventually refresh. The current Tuya cache is process-lifetime and opt-in; a later iteration can add an explicit TTL or invalidation strategy.
