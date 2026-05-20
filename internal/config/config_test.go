@@ -69,6 +69,43 @@ tuya:
 				},
 			},
 		},
+		{
+			name: "trims surrounding whitespace from scalar values",
+			content: `
+http:
+  port: 8080
+tuya:
+  endpoint: " https://example.com/ "
+  client_id: " client-id "
+  client_secret: " client-secret "
+yandex:
+  user_id: " bridge-user "
+  bearer_token: " bearer-token "
+  path_prefix: " /custom/yandex "
+  oauth:
+    client_id: " oauth-client "
+    client_secret: " oauth-secret "
+`,
+			want: Config{
+				HTTP: HTTPConfig{
+					Port: 8080,
+				},
+				Tuya: TuyaConfig{
+					Endpoint:     "https://example.com/",
+					ClientID:     "client-id",
+					ClientSecret: "client-secret",
+				},
+				Yandex: YandexConfig{
+					UserID:      "bridge-user",
+					BearerToken: "bearer-token",
+					PathPrefix:  "/custom/yandex",
+					OAuth: OAuthConfig{
+						ClientID:     "oauth-client",
+						ClientSecret: "oauth-secret",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

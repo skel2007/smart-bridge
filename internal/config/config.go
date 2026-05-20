@@ -56,17 +56,50 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("invalid YAML in config file %s: %w", path, err)
 	}
 
-	applyDefaults(&cfg)
+	cfg.normalize()
+	cfg.applyDefaults()
+
 	return cfg, nil
 }
 
-func applyDefaults(cfg *Config) {
-	if strings.TrimSpace(cfg.Tuya.Endpoint) == "" {
-		cfg.Tuya.Endpoint = DefaultTuyaEndpoint
+func (cfg *Config) normalize() {
+	cfg.Tuya.normalize()
+	cfg.Yandex.normalize()
+}
+
+func (cfg *Config) applyDefaults() {
+	cfg.Tuya.applyDefaults()
+	cfg.Yandex.applyDefaults()
+}
+
+func (cfg *TuyaConfig) normalize() {
+	cfg.Endpoint = strings.TrimSpace(cfg.Endpoint)
+	cfg.ClientID = strings.TrimSpace(cfg.ClientID)
+	cfg.ClientSecret = strings.TrimSpace(cfg.ClientSecret)
+}
+
+func (cfg *TuyaConfig) applyDefaults() {
+	if cfg.Endpoint == "" {
+		cfg.Endpoint = DefaultTuyaEndpoint
 	}
-	if strings.TrimSpace(cfg.Yandex.PathPrefix) == "" {
-		cfg.Yandex.PathPrefix = DefaultYandexPathPrefix
+}
+
+func (cfg *YandexConfig) normalize() {
+	cfg.UserID = strings.TrimSpace(cfg.UserID)
+	cfg.BearerToken = strings.TrimSpace(cfg.BearerToken)
+	cfg.PathPrefix = strings.TrimSpace(cfg.PathPrefix)
+	cfg.OAuth.normalize()
+}
+
+func (cfg *YandexConfig) applyDefaults() {
+	if cfg.PathPrefix == "" {
+		cfg.PathPrefix = DefaultYandexPathPrefix
 	}
+}
+
+func (cfg *OAuthConfig) normalize() {
+	cfg.ClientID = strings.TrimSpace(cfg.ClientID)
+	cfg.ClientSecret = strings.TrimSpace(cfg.ClientSecret)
 }
 
 func (cfg HTTPConfig) Validate() error {
