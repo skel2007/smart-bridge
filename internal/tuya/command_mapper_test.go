@@ -35,6 +35,17 @@ func TestMapCapabilityCommand(t *testing.T) {
 			want: cloud.Command{Code: "bright_value_v2", Value: 505},
 		},
 		{
+			name:    "brightness snaps to tuya step",
+			command: devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 50),
+			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{
+				{
+					Code:   "bright_value_v2",
+					Values: []byte(`{"min":10,"max":1000,"scale":0,"step":10}`),
+				},
+			}},
+			want: cloud.Command{Code: "bright_value_v2", Value: 510},
+		},
+		{
 			name:    "color temperature level",
 			command: devices.NewRangeCommand(devices.CapabilityInstanceColorTemperatureLevel, 75),
 			specification: cloud.DeviceSpecifications{Functions: []cloud.FunctionSpec{

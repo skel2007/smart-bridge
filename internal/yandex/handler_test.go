@@ -272,14 +272,6 @@ func TestHandlerDevicesQueryReturnsRequestLevelErrors(t *testing.T) {
 			body:       `{"devices": []}{}`,
 			wantStatus: http.StatusBadRequest,
 		},
-		{
-			name: "list devices fails",
-			gateway: &fakeGateway{
-				listDevicesErr: errors.New("upstream unavailable"),
-			},
-			body:       `{"devices": []}`,
-			wantStatus: http.StatusInternalServerError,
-		},
 	}
 
 	for _, tt := range tests {
@@ -295,14 +287,51 @@ func TestHandlerDevicesQueryReturnsRequestLevelErrors(t *testing.T) {
 	}
 }
 
+func TestHandlerDevicesQueryDegradesWhenDeviceListCannotBeLoaded(t *testing.T) {
+	gateway := &fakeGateway{
+		listDevicesErr: errors.New("upstream unavailable"),
+	}
+	handler := newTestHandler(gateway)
+	request := newHandlerRequest(http.MethodPost, "/v1.0/user/devices/query", `{
+		"devices": [
+			{"id": "light-1"},
+			{"id": "light-2"}
+		]
+	}`)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.JSONEq(t, `{
+		"request_id": "request-1",
+		"payload": {
+			"devices": [
+				{
+					"id": "light-1",
+					"error_code": "DEVICE_UNREACHABLE",
+					"error_message": "device is unreachable"
+				},
+				{
+					"id": "light-2",
+					"error_code": "DEVICE_UNREACHABLE",
+					"error_message": "device is unreachable"
+				}
+			]
+		}
+	}`, response.Body.String())
+}
+
 func TestHandlerDevicesActionReturnsPerDeviceResults(t *testing.T) {
 	gateway := &fakeGateway{
 		devices: []devices.Device{
 			{ID: "light-1", Name: "Desk light", Type: devices.DeviceTypeLight},
 			{ID: "light-invalid", Name: "Invalid light", Type: devices.DeviceTypeLight},
+			{ID: "light-unsupported", Name: "Unsupported light", Type: devices.DeviceTypeLight},
 			{ID: "light-unreachable", Name: "Unreachable light", Type: devices.DeviceTypeLight},
 		},
 		sendErrors: map[string]error{
+			"light-unsupported": devices.NewCapabilityNotSupportedError("tuya function not found for capability instance: brightness"),
 			"light-unreachable": errors.New("upstream unavailable"),
 		},
 	}
@@ -333,6 +362,12 @@ func TestHandlerDevicesActionReturnsPerDeviceResults(t *testing.T) {
 						newTestCapabilityAction(capabilityTypeRange, capabilityInstanceBrightness, 42),
 					},
 				},
+				{
+					ID: "light-unsupported",
+					Capabilities: []CapabilityAction{
+						newTestCapabilityAction(capabilityTypeRange, capabilityInstanceBrightness, 42),
+					},
+				},
 			},
 		},
 	})
@@ -347,18 +382,95 @@ func TestHandlerDevicesActionReturnsPerDeviceResults(t *testing.T) {
 	var actionResponse DevicesActionResponse
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &actionResponse))
 	require.Equal(t, "request-1", actionResponse.RequestID)
-	require.Len(t, actionResponse.Payload.Devices, 4)
+	require.Len(t, actionResponse.Payload.Devices, 5)
 	require.Equal(t, actionStatusDone, actionResponse.Payload.Devices[0].Capabilities[0].State.ActionResult.Status)
 	require.Equal(t, errorCodeDeviceNotFound, actionResponse.Payload.Devices[1].ActionResult.ErrorCode)
 	require.Equal(t, errorCodeInvalidValue, actionResponse.Payload.Devices[2].Capabilities[0].State.ActionResult.ErrorCode)
 	require.Equal(t, errorCodeDeviceUnreachable, actionResponse.Payload.Devices[3].Capabilities[0].State.ActionResult.ErrorCode)
+	require.Equal(t, errorCodeNotSupportedInCurrentMode, actionResponse.Payload.Devices[4].Capabilities[0].State.ActionResult.ErrorCode)
 	require.Equal(t, []devices.CapabilityCommand{
 		devices.NewOnOffCommand(devices.CapabilityInstancePower, true),
 	}, gateway.sentCommands["light-1"])
 	require.Equal(t, []devices.CapabilityCommand{
 		devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 42),
 	}, gateway.sentCommands["light-unreachable"])
+	require.Equal(t, []devices.CapabilityCommand{
+		devices.NewRangeCommand(devices.CapabilityInstanceBrightness, 42),
+	}, gateway.sentCommands["light-unsupported"])
 	require.NotContains(t, gateway.sentCommands, "light-invalid")
+}
+
+func TestHandlerDevicesActionRejectsEmptyCapabilities(t *testing.T) {
+	gateway := &fakeGateway{
+		devices: []devices.Device{
+			{ID: "light-1", Name: "Desk light", Type: devices.DeviceTypeLight},
+		},
+	}
+	handler := newTestHandler(gateway)
+	request := newHandlerRequest(http.MethodPost, "/v1.0/user/devices/action", `{
+		"payload": {
+			"devices": [
+				{"id": "light-1", "capabilities": []}
+			]
+		}
+	}`)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	var actionResponse DevicesActionResponse
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &actionResponse))
+	require.Len(t, actionResponse.Payload.Devices, 1)
+	require.Equal(t, errorCodeInvalidValue, actionResponse.Payload.Devices[0].ActionResult.ErrorCode)
+	require.Empty(t, gateway.sentCommands)
+}
+
+func TestHandlerRejectsOversizedJSONBody(t *testing.T) {
+	handler := newTestHandler(&fakeGateway{})
+	request := newHandlerRequest(http.MethodPost, "/v1.0/user/devices/query", strings.Repeat(" ", maxRequestBodyBytes+1))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusRequestEntityTooLarge, response.Code)
+}
+
+func TestHandlerDevicesActionDegradesWhenDeviceListCannotBeLoaded(t *testing.T) {
+	gateway := &fakeGateway{
+		listDevicesErr: errors.New("upstream unavailable"),
+	}
+	body := mustJSON(t, DevicesActionRequest{
+		Payload: DevicesActionPayload{
+			Devices: []DeviceAction{
+				{
+					ID: "light-1",
+					Capabilities: []CapabilityAction{
+						newTestCapabilityAction(capabilityTypeOnOff, capabilityInstanceOn, true),
+					},
+				},
+				{
+					ID: "light-2",
+					Capabilities: []CapabilityAction{
+						newTestCapabilityAction(capabilityTypeRange, capabilityInstanceBrightness, 42),
+					},
+				},
+			},
+		},
+	})
+	handler := newTestHandler(gateway)
+	request := newHandlerRequest(http.MethodPost, "/v1.0/user/devices/action", body)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	var actionResponse DevicesActionResponse
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &actionResponse))
+	require.Len(t, actionResponse.Payload.Devices, 2)
+	require.Equal(t, errorCodeDeviceUnreachable, actionResponse.Payload.Devices[0].Capabilities[0].State.ActionResult.ErrorCode)
+	require.Equal(t, errorCodeDeviceUnreachable, actionResponse.Payload.Devices[1].Capabilities[0].State.ActionResult.ErrorCode)
+	require.Empty(t, gateway.sentCommands)
 }
 
 func newTestHandler(gateway devices.DeviceGateway) *Handler {

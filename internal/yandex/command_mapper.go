@@ -10,6 +10,13 @@ import (
 )
 
 func mapDeviceActionCommands(action DeviceAction) ([]devices.CapabilityCommand, error) {
+	if len(action.Capabilities) == 0 {
+		return nil, actionMappingError{
+			Code:    errorCodeInvalidValue,
+			Message: "action capabilities are required",
+		}
+	}
+
 	commands := make([]devices.CapabilityCommand, 0, len(action.Capabilities))
 
 	for _, capability := range action.Capabilities {

@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/skel2007/smart-bridge/internal/devices"
 )
@@ -15,8 +14,8 @@ const (
 	headerAuthorization = "Authorization"
 	headerRequestID     = "X-Request-Id"
 
-	actionStatusDone  = "DONE"
-	actionStatusError = "ERROR"
+	// maxRequestBodyBytes limits Yandex JSON requests to 1 MiB.
+	maxRequestBodyBytes = 1 << 20
 )
 
 type Handler struct {
@@ -133,7 +132,12 @@ func (handler *Handler) serveDevicesQuery(w http.ResponseWriter, r *http.Request
 	deviceList, err := handler.gateway.ListDevices(r.Context())
 	if err != nil {
 		handler.logRequest(r, slog.LevelWarn, "query yandex devices failed", "error", err)
-		http.Error(w, "list devices failed", http.StatusInternalServerError)
+		writeJSON(w, http.StatusOK, DevicesQueryResponse{
+			RequestID: r.Header.Get(headerRequestID),
+			Payload: DevicesQueryPayload{
+				Devices: newDeviceStateErrors(request.Devices, errorCodeDeviceUnreachable, "device is unreachable"),
+			},
+		})
 		return
 	}
 	knownDeviceIDs := mapDeviceIDs(deviceList)
@@ -173,7 +177,12 @@ func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Reques
 	deviceList, err := handler.gateway.ListDevices(r.Context())
 	if err != nil {
 		handler.logRequest(r, slog.LevelWarn, "prepare yandex device action failed", "error", err)
-		http.Error(w, "list devices failed", http.StatusInternalServerError)
+		writeJSON(w, http.StatusOK, DevicesActionResponse{
+			RequestID: r.Header.Get(headerRequestID),
+			Payload: DevicesActionResults{
+				Devices: newDeviceActionErrors(request.Payload.Devices, errorCodeDeviceUnreachable, "device is unreachable"),
+			},
+		})
 		return
 	}
 	knownDeviceIDs := mapDeviceIDs(deviceList)
@@ -200,8 +209,9 @@ func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Reques
 		}
 
 		if err := handler.gateway.SendCommands(r.Context(), deviceAction.ID, commands); err != nil {
-			handler.logDeviceError(r, deviceAction.ID, errorCodeDeviceUnreachable, "send yandex device action failed", err)
-			results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(errorCodeDeviceUnreachable, "device is unreachable")))
+			errorCode, errorMessage := mapActionSendError(err)
+			handler.logDeviceError(r, deviceAction.ID, errorCode, "send yandex device action failed", err)
+			results = append(results, newDeviceCapabilityResults(deviceAction, newActionError(errorCode, errorMessage)))
 			continue
 		}
 
@@ -217,13 +227,26 @@ func (handler *Handler) serveDevicesAction(w http.ResponseWriter, r *http.Reques
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, out any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(out); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return false
+		}
+
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return false
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); err != io.EOF {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return false
+		}
+
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return false
 	}
@@ -246,15 +269,12 @@ func mapDeviceIDs(deviceList []devices.Device) map[string]struct{} {
 	return result
 }
 
-func newDeviceStateError(deviceID string, code string, message string) DeviceState {
-	return DeviceState{
-		ID:           deviceID,
-		ErrorCode:    code,
-		ErrorMessage: message,
-	}
-}
-
 func (handler *Handler) logDeviceError(r *http.Request, deviceID string, code string, message string, err error) {
+	level := slog.LevelDebug
+	if code == errorCodeDeviceUnreachable {
+		level = slog.LevelWarn
+	}
+
 	attrs := []any{
 		"device_id", deviceID,
 		"error_code", code,
@@ -263,7 +283,7 @@ func (handler *Handler) logDeviceError(r *http.Request, deviceID string, code st
 		attrs = append(attrs, "error", err)
 	}
 
-	handler.logRequest(r, slog.LevelDebug, message, attrs...)
+	handler.logRequest(r, level, message, attrs...)
 }
 
 func (handler *Handler) logRequest(r *http.Request, level slog.Level, message string, attrs ...any) {
@@ -274,37 +294,4 @@ func (handler *Handler) logRequest(r *http.Request, level slog.Level, message st
 	}, attrs...)
 
 	handler.logger.Log(r.Context(), level, message, attrs...)
-}
-
-func newDeviceActionError(deviceID string, code string, message string) DeviceActionResult {
-	return DeviceActionResult{
-		ID:           deviceID,
-		ActionResult: new(newActionError(code, message)),
-	}
-}
-
-func newDeviceCapabilityResults(action DeviceAction, result ActionResult) DeviceActionResult {
-	capabilities := make([]CapabilityActionResult, 0, len(action.Capabilities))
-	for _, capability := range action.Capabilities {
-		capabilities = append(capabilities, CapabilityActionResult{
-			Type: capability.Type,
-			State: CapabilityActionResultState{
-				Instance:     capability.State.Instance,
-				ActionResult: result,
-			},
-		})
-	}
-
-	return DeviceActionResult{
-		ID:           action.ID,
-		Capabilities: capabilities,
-	}
-}
-
-func newActionError(code string, message string) ActionResult {
-	return ActionResult{
-		Status:       actionStatusError,
-		ErrorCode:    code,
-		ErrorMessage: strings.TrimSpace(message),
-	}
 }

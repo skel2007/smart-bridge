@@ -14,7 +14,7 @@ func mapCapabilityCommand(command devices.CapabilityCommand, specifications clou
 
 	function, ok := findCommandFunction(command.Instance, specifications.Functions)
 	if !ok {
-		return cloud.Command{}, fmt.Errorf("tuya function not found for capability instance: %s", command.Instance)
+		return cloud.Command{}, devices.NewCapabilityNotSupportedError("tuya function not found for capability instance: %s", command.Instance)
 	}
 
 	value, err := mapCommandValue(command, function)
@@ -56,10 +56,10 @@ func mapCommandValue(command devices.CapabilityCommand, function cloud.FunctionS
 func mapRangeCommandValue(value float64, rawValues []byte) (int, error) {
 	var tuyaValues tuyaIntegerValues
 	if !decodeTuyaValues(rawValues, &tuyaValues) || !tuyaValues.validRange() {
-		return 0, fmt.Errorf("tuya range values are missing or invalid")
+		return 0, devices.NewCapabilityNotSupportedError("tuya range values are missing or invalid")
 	}
 
-	return int(roundToPrecision(scaleDomainPercentToTuyaRange(value, tuyaValues.Min, tuyaValues.Max), 1)), nil
+	return int(roundTuyaIntegerStep(scaleDomainPercentToTuyaRange(value, tuyaValues.Min, tuyaValues.Max), tuyaValues)), nil
 }
 
 func mapColorCommandValue(value devices.HSVColor, code string) tuyaHSVValue {
@@ -78,7 +78,7 @@ func mapColorCommandValue(value devices.HSVColor, code string) tuyaHSVValue {
 func mapModeCommandValue(value string, rawValues []byte) (string, error) {
 	var tuyaValues tuyaEnumValues
 	if !decodeTuyaValues(rawValues, &tuyaValues) {
-		return "", fmt.Errorf("tuya mode values are missing or invalid")
+		return "", devices.NewCapabilityNotSupportedError("tuya mode values are missing or invalid")
 	}
 
 	for _, mode := range tuyaValues.Range {
@@ -87,5 +87,5 @@ func mapModeCommandValue(value string, rawValues []byte) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("tuya mode value is not supported: %s", value)
+	return "", devices.NewCapabilityNotSupportedError("tuya mode value is not supported: %s", value)
 }
