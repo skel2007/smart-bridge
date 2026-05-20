@@ -23,14 +23,35 @@ const (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	}))
+	logger := newLogger(os.Stderr)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
 	code := run(ctx, os.Args[1:], logger)
 	stop()
 	os.Exit(code)
+}
+
+func newLogger(w io.Writer) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
+		Level:       slog.LevelDebug,
+		ReplaceAttr: cloudLoggingAttr,
+	}))
+}
+
+func cloudLoggingAttr(_ []string, attr slog.Attr) slog.Attr {
+	switch attr.Key {
+	case slog.LevelKey:
+		attr.Key = "severity"
+		if level, ok := attr.Value.Any().(slog.Level); ok && level == slog.LevelWarn {
+			attr.Value = slog.StringValue("WARNING")
+		}
+	case slog.MessageKey:
+		attr.Key = "message"
+	case slog.TimeKey:
+		attr.Key = "timestamp"
+	}
+
+	return attr
 }
 
 func run(ctx context.Context, args []string, logger *slog.Logger) int {

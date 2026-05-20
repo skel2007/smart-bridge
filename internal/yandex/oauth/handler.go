@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 )
 
@@ -11,14 +12,29 @@ import (
 type Handler struct {
 	cfg    Config
 	issuer issuer
+	logger *slog.Logger
 	mux    *http.ServeMux
 }
 
-func NewHandler(cfg Config) *Handler {
+type Option func(*Handler)
+
+func WithLogger(logger *slog.Logger) Option {
+	return func(handler *Handler) {
+		if logger != nil {
+			handler.logger = logger
+		}
+	}
+}
+
+func NewHandler(cfg Config, options ...Option) *Handler {
 	handler := &Handler{
 		cfg:    cfg,
 		issuer: newIssuer(cfg),
+		logger: slog.New(slog.DiscardHandler),
 		mux:    http.NewServeMux(),
+	}
+	for _, option := range options {
+		option(handler)
 	}
 
 	handler.mux.HandleFunc("GET /authorize", handler.serveOAuthAuthorize)
@@ -83,6 +99,7 @@ func (handler *Handler) serveOAuthToken(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !handler.oauthClientAuthorized(r) {
+		handler.logTokenError(r, "invalid_client", "oauth token client rejected")
 		writeOAuthError(w, http.StatusUnauthorized, "invalid_client", "invalid client credentials")
 		return
 	}
@@ -153,6 +170,13 @@ func (handler *Handler) oauthClientAuthorized(r *http.Request) bool {
 	}
 
 	return handler.oauthClientIDMatches(clientID) && hmac.Equal([]byte(clientSecret), []byte(handler.cfg.ClientSecret))
+}
+
+func (handler *Handler) logTokenError(r *http.Request, code string, message string) {
+	handler.logger.WarnContext(r.Context(), message,
+		"error_code", code,
+		"grant_type", r.Form.Get("grant_type"),
+	)
 }
 
 func (handler *Handler) oauthClientIDMatches(clientID string) bool {

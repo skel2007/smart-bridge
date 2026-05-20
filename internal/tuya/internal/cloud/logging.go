@@ -29,7 +29,7 @@ func (transport *loggingRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 	attrs := []any{
 		"method", req.Method,
 		"route", requestRoute(req),
-		"duration", time.Since(start),
+		"duration_ms", time.Since(start).Milliseconds(),
 	}
 	if resp != nil {
 		attrs = append(attrs, "status_code", resp.StatusCode)

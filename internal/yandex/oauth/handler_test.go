@@ -1,6 +1,8 @@
 package oauth
 
 import (
+	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -131,7 +133,31 @@ func TestOAuthTokenValidatesGrant(t *testing.T) {
 	}
 }
 
-func TestOAuthTokenRequiresBasicAuth(t *testing.T) {
+func TestOAuthTokenLogsInvalidClientWithoutSecrets(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler := NewHandler(testConfig(), WithLogger(logger))
+	request := newTokenRequestWithoutBasicAuth(
+		"grant_type=authorization_code",
+		"code=secret-code",
+		"redirect_uri="+testOAuthRedirectURI,
+		"client_id=smart-bridge",
+		"client_secret=wrong-secret",
+	)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+	logText := logs.String()
+	require.Contains(t, logText, "oauth token client rejected")
+	require.Contains(t, logText, `"error_code":"invalid_client"`)
+	require.Contains(t, logText, `"grant_type":"authorization_code"`)
+	require.NotContains(t, logText, "secret-code")
+	require.NotContains(t, logText, "wrong-secret")
+}
+
+func TestOAuthTokenRequiresClientAuth(t *testing.T) {
 	tests := []struct {
 		name      string
 		body      string

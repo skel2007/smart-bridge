@@ -16,13 +16,15 @@ Use `log/slog` for structured logging. Application wiring owns logger constructi
 
 Keep `internal/devices` log-free.
 
-The Tuya Cloud client logs outgoing HTTP attempts at debug level with method, safe route, duration, status code, and error when present. It does not log raw refresh-token URLs.
+The Tuya Cloud client logs outgoing HTTP attempts at debug level with method, safe route, numeric `duration_ms`, status code, and error when present. It does not log raw refresh-token URLs.
 
-The Yandex handler logs accepted protocol requests at info level with the Yandex request ID, method, and handler-local path. It logs upstream failures that affect a whole request at warn level, partial discovery degradation at warn level, and per-device query/action errors at debug level.
+The Yandex handler does not log accepted protocol requests. Cloud Run request logs are the primary access logs. The Yandex handler logs upstream failures that affect a whole request at warn level, partial discovery degradation at warn level, and per-device query/action errors at debug level.
 
-Do not add generic HTTP access logging middleware in the Yandex handler. Generic access logs belong with the HTTP server entrypoint; Yandex protocol request logs belong at the Yandex boundary because `X-Request-Id` is part of that protocol.
+Do not add generic HTTP access logging middleware in the Yandex handler. Generic access logs belong to the platform or HTTP server entrypoint; in Cloud Run, `run.googleapis.com/requests` is the primary access log. Yandex protocol request logs belong at the Yandex boundary only when they add protocol-specific diagnostics such as `X-Request-Id`.
 
-The HTTP server entrypoint creates a JSON logger on stderr at debug level by default and passes it into server wiring.
+The OAuth compatibility handler logs safe token-client rejection events at warn level. It records only non-secret diagnostic fields such as error code and grant type. It must not log authorization codes, refresh tokens, client secrets, bearer tokens, or raw `Authorization` headers.
+
+The HTTP server entrypoint creates a JSON logger on stderr at debug level by default and passes it into server wiring. Its JSON keys are shaped for Cloud Logging: `severity` instead of `level`, `message` instead of `msg`, and Go `WARN` is emitted as Cloud Logging `WARNING`.
 
 ## Consequences
 

@@ -37,7 +37,7 @@ func Run(ctx context.Context, configPath string, logger *slog.Logger) error {
 	gateway := newTuyaGateway(cfg, logger)
 	httpServer := &http.Server{
 		Handler: newMux(cfg, yandexHandlers{
-			oauth:    newYandexOAuthHandler(cfg),
+			oauth:    newYandexOAuthHandler(cfg, logger),
 			protocol: newYandexHandler(cfg, gateway, logger),
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,
@@ -131,10 +131,13 @@ func newYandexHandler(cfg config.Config, gateway devices.DeviceGateway, logger *
 	)
 }
 
-func newYandexOAuthHandler(cfg config.Config) http.Handler {
-	return yandexoauth.NewHandler(yandexoauth.Config{
-		ClientID:          cfg.Yandex.OAuth.ClientID,
-		ClientSecret:      cfg.Yandex.OAuth.ClientSecret,
-		StaticAccessToken: cfg.Yandex.BearerToken,
-	})
+func newYandexOAuthHandler(cfg config.Config, logger *slog.Logger) http.Handler {
+	return yandexoauth.NewHandler(
+		yandexoauth.Config{
+			ClientID:          cfg.Yandex.OAuth.ClientID,
+			ClientSecret:      cfg.Yandex.OAuth.ClientSecret,
+			StaticAccessToken: cfg.Yandex.BearerToken,
+		},
+		yandexoauth.WithLogger(logger),
+	)
 }

@@ -74,8 +74,6 @@ func (handler *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing X-Request-Id", http.StatusBadRequest)
 		return
 	}
-	handler.logRequest(r, slog.LevelInfo, "yandex request received")
-
 	handler.mux.ServeHTTP(w, r)
 }
 
