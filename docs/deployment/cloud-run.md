@@ -93,7 +93,7 @@ docker run --rm \
 In another shell:
 
 ```sh
-curl -i http://127.0.0.1:8080/healthz
+curl -i http://127.0.0.1:8080/health
 ```
 
 ## Build image
@@ -137,7 +137,7 @@ export YANDEX_BEARER_TOKEN=your-strong-bearer-token
 ```
 
 ```sh
-curl -i "${SERVICE_URL}/healthz"
+curl -i "${SERVICE_URL}/health"
 ```
 
 ```sh

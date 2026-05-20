@@ -75,7 +75,7 @@ func TestNewMuxExposesHealthOutsideYandexPrefix(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 	mux := newMux(cfg, handler)
-	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
 
 	mux.ServeHTTP(response, request)
@@ -93,7 +93,7 @@ func TestNewMuxExposesHealthWhenYandexHandlerIsMountedAtRoot(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 	mux := newMux(cfg, handler)
-	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
 
 	mux.ServeHTTP(response, request)

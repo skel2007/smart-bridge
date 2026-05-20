@@ -24,7 +24,7 @@ Use a dedicated Cloud Run runtime service account with Secret Manager access onl
 
 Use Cloud Logging from JSON stdout/stderr logs at debug level. Do not add alerts or log sinks until real traffic shows an operational need.
 
-Expose unauthenticated `GET /healthz` outside `yandex.path_prefix`. It checks only that the HTTP process is up and does not call Tuya Cloud. Post-deployment smoke still uses the Yandex protocol endpoints with `Authorization` and `X-Request-Id`.
+Expose unauthenticated `GET /health` outside `yandex.path_prefix`. It checks only that the HTTP process is up and does not call Tuya Cloud. Avoid `z`-suffixed health paths because Cloud Run reserves some URL paths ending with `z`. Post-deployment smoke still uses the Yandex protocol endpoints with `Authorization` and `X-Request-Id`.
 
 ## Consequences
 
