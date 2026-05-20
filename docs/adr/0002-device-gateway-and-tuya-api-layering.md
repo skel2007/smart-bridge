@@ -45,3 +45,8 @@ The split adds one internal layer, but it localizes future changes: retries, tok
 
 The current `tuya.Gateway` default remains sufficient for short-lived CLI command execution.
 Long-running services can explicitly enable the specification cache before sharing a gateway instance across requests.
+
+## Open Questions
+
+Per-device upstream reads are currently sequential.
+Parallel reads remain undecided until live latency or device count makes the extra rate-limit and error-handling complexity worthwhile.

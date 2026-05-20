@@ -99,6 +99,11 @@ The Yandex layer uses the preconfigured bearer token and does not implement OAut
 
 `GET /v1.0/user/devices` may call `ListCapabilities` per device to describe Yandex capabilities accurately. Repeated upstream specification reads are handled by the opt-in Tuya specification cache described in ADR 0001 and ADR 0002.
 
+## Open Questions
+
+Yandex request-level timeouts are intentionally undecided.
+Choose an outer timeout only after aligning it with Tuya per-call timeouts, retries, and observed live latency.
+
 ## Implementation History
 
 The initial Yandex code slice was split into reviewable commits:
