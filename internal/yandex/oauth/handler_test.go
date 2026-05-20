@@ -96,6 +96,18 @@ func TestOAuthTokenAcceptsFormClientCredentials(t *testing.T) {
 	requireAccessTokenResponse(t, response, "devices")
 }
 
+func TestOAuthTokenRejectsOversizedFormBody(t *testing.T) {
+	handler := newTestHandler()
+	request := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(strings.Repeat("a", maxTokenRequestBodyBytes+1)))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusRequestEntityTooLarge, response.Code)
+	require.JSONEq(t, `{"error":"invalid_request","error_description":"invalid form body"}`, response.Body.String())
+}
+
 func TestOAuthTokenValidatesGrant(t *testing.T) {
 	tests := []struct {
 		name string

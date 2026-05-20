@@ -21,7 +21,7 @@ Expose OAuth endpoints under `yandex.path_prefix`:
 
 The authorization endpoint auto-approves the configured user. It accepts `response_type=code`, `client_id`, `redirect_uri`, optional `state`, and optional `scope`; it requires an absolute HTTPS `redirect_uri` and redirects back with a signed short-lived code.
 
-The token endpoint accepts client authentication only through HTTP Basic. It supports `grant_type=authorization_code` and `grant_type=refresh_token`. For authorization code exchange, it requires `redirect_uri` and checks exact match with the signed code.
+The token endpoint prefers client authentication through HTTP Basic. For compatibility with Yandex account-linking clients that submit credentials in an `application/x-www-form-urlencoded` token request, it also accepts `client_id` and `client_secret` from the form body when Basic credentials are absent. It supports `grant_type=authorization_code` and `grant_type=refresh_token`. For authorization code exchange, it requires `redirect_uri` and checks exact match with the signed code.
 
 The access token returned to Yandex is the configured `yandex.bearer_token`. Authorization codes and refresh tokens are stateless signed tokens using `yandex.oauth.client_secret`; authorization codes expire after 5 minutes, and refresh tokens use a rolling 365-day lifetime. `scope` is optional and is returned only when requested.
 

@@ -193,7 +193,7 @@ curl -i \
   "${SERVICE_URL}/api/yandex/oauth/token"
 ```
 
-Inspect Cloud Logging for `http server listening`, `yandex request received`, and any Tuya degradation warnings.
+Inspect Cloud Logging for `http server listening` and any Tuya or Yandex degradation warnings.
 
 ## Rollback
 

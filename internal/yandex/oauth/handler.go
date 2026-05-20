@@ -8,6 +8,9 @@ import (
 	"net/http"
 )
 
+// maxTokenRequestBodyBytes limits OAuth token form requests to 8 KiB.
+const maxTokenRequestBodyBytes = 8 << 10
+
 // Handler serves OAuth compatibility endpoints.
 type Handler struct {
 	cfg    Config
@@ -94,8 +97,14 @@ func newOAuthAuthorizeRequest(r *http.Request) (oauthAuthorizeRequest, bool) {
 }
 
 func (handler *Handler) serveOAuthToken(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxTokenRequestBodyBytes)
 	if err := r.ParseForm(); err != nil {
-		writeOAuthError(w, http.StatusBadRequest, "invalid_request", "invalid form body")
+		status := http.StatusBadRequest
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			status = http.StatusRequestEntityTooLarge
+		}
+		writeOAuthError(w, status, "invalid_request", "invalid form body")
 		return
 	}
 	if !handler.oauthClientAuthorized(r) {

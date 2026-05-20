@@ -81,6 +81,8 @@ The scope field is optional. If Yandex sends a scope value, smart-bridge echoes 
 
 The OAuth compatibility layer auto-approves the configured client, returns `yandex.bearer_token` as `access_token`, and Yandex then uses that bearer token for Smart Home protocol requests.
 
+The token endpoint accepts HTTP Basic client authentication and also accepts form-body `client_id` / `client_secret` when Basic credentials are absent, because Yandex account-linking clients may use either shape.
+
 ## Publish Skill
 
 1. Save the draft.

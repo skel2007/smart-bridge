@@ -94,7 +94,7 @@ the Yandex handler still owns `/v1.0/...` internally.
 
 The shared config loader may read all sections, but validation stays caller-specific.
 The HTTP server validates `http`, `tuya`, and `yandex` before listening.
-The Yandex layer uses the preconfigured bearer token and does not implement OAuth endpoints.
+The Yandex layer uses the preconfigured bearer token for protocol requests. OAuth endpoint compatibility was added later by ADR 0006.
 `POST /v1.0/user/unlink` acknowledges unlink notifications without deleting local config or upstream credentials.
 
 `GET /v1.0/user/devices` may call `ListCapabilities` per device to describe Yandex capabilities accurately. Repeated upstream specification reads are handled by the opt-in Tuya specification cache described in ADR 0001 and ADR 0002.
