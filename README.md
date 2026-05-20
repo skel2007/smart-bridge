@@ -16,7 +16,7 @@ Fill in the runtime and platform settings:
 
 ```yaml
 http:
-  port: 0
+  port: 8080
 
 tuya:
   endpoint: https://openapi.tuyaeu.com
@@ -77,7 +77,7 @@ Run the HTTP server:
 bin/smart-bridge-server --config config.yaml
 ```
 
-The server listens on `http.port`. The default example uses `0`, so the OS chooses an available local port and the actual address is written to JSON logs on stderr.
+The server listens on `http.port`. If `http.port` is `0`, the OS chooses an available local port and the actual address is written to JSON logs on stderr.
 
 Yandex requests are mounted under `yandex.path_prefix`. With the default config, the local discovery path is `/api/yandex/v1.0/user/devices`.
 

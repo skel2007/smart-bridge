@@ -1,5 +1,5 @@
 http:
-  port: 0
+  port: 8080
 
 tuya:
   endpoint: https://openapi.tuyaeu.com

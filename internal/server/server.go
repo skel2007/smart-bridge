@@ -71,10 +71,16 @@ func Run(ctx context.Context, configPath string, logger *slog.Logger) error {
 
 func newMux(cfg config.Config, yandexHandler http.Handler) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", serveHealth)
+
 	pattern, stripPrefix := yandexMount(cfg.Yandex.PathPrefix)
 	mux.Handle(pattern, http.StripPrefix(stripPrefix, yandexHandler))
 
 	return mux
+}
+
+func serveHealth(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func yandexMount(pathPrefix string) (pattern string, stripPrefix string) {

@@ -64,3 +64,39 @@ func TestNewMuxDoesNotExposeYandexHandlerOutsideConfiguredPrefix(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, response.Code)
 }
+
+func TestNewMuxExposesHealthOutsideYandexPrefix(t *testing.T) {
+	cfg := config.Config{
+		Yandex: config.YandexConfig{
+			PathPrefix: "/api/yandex",
+		},
+	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	mux := newMux(cfg, handler)
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	mux.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusNoContent, response.Code)
+}
+
+func TestNewMuxExposesHealthWhenYandexHandlerIsMountedAtRoot(t *testing.T) {
+	cfg := config.Config{
+		Yandex: config.YandexConfig{
+			PathPrefix: "/",
+		},
+	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	mux := newMux(cfg, handler)
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	mux.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusNoContent, response.Code)
+}
