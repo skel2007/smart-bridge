@@ -27,6 +27,10 @@ func TestValidateConfigRequiresHTTPAndPlatformSections(t *testing.T) {
 					UserID:      "bridge-user",
 					BearerToken: "bearer-token",
 					PathPrefix:  config.DefaultYandexPathPrefix,
+					OAuth: config.OAuthConfig{
+						ClientID:     "oauth-client",
+						ClientSecret: "oauth-secret",
+					},
 				},
 			},
 		},
@@ -58,6 +62,10 @@ func TestValidateConfigRequiresHTTPAndPlatformSections(t *testing.T) {
 				Yandex: config.YandexConfig{
 					BearerToken: "bearer-token",
 					PathPrefix:  config.DefaultYandexPathPrefix,
+					OAuth: config.OAuthConfig{
+						ClientID:     "oauth-client",
+						ClientSecret: "oauth-secret",
+					},
 				},
 			},
 			wantErr: "yandex.user_id is required",

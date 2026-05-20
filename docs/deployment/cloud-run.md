@@ -123,10 +123,12 @@ gcloud run deploy "${SERVICE}" \
   --update-secrets /secrets/smart-bridge/config.yaml="${SECRET_NAME}:${SECRET_VERSION}"
 ```
 
-The deploy command returns the service URL. With the default config, the discovery path is:
+The deploy command returns the service URL. With the default config, the discovery and OAuth paths are:
 
 ```text
 https://SERVICE_URL/api/yandex/v1.0/user/devices
+https://SERVICE_URL/api/yandex/oauth/authorize
+https://SERVICE_URL/api/yandex/oauth/token
 ```
 
 ## Smoke checks
@@ -134,6 +136,8 @@ https://SERVICE_URL/api/yandex/v1.0/user/devices
 ```sh
 export SERVICE_URL=https://your-cloud-run-url
 export YANDEX_BEARER_TOKEN=your-strong-bearer-token
+export YANDEX_OAUTH_CLIENT_ID=smart-bridge
+export YANDEX_OAUTH_CLIENT_SECRET=your-oauth-client-secret
 ```
 
 ```sh
@@ -161,6 +165,23 @@ curl -i \
   -H "Content-Type: application/json" \
   --data '{"devices":[{"id":"your-device-id"}]}' \
   "${SERVICE_URL}/api/yandex/v1.0/user/devices/query"
+```
+
+```sh
+curl -i -G \
+  --data-urlencode "response_type=code" \
+  --data-urlencode "client_id=${YANDEX_OAUTH_CLIENT_ID}" \
+  --data-urlencode "redirect_uri=https://example.com/callback" \
+  --data-urlencode "state=smoke-state" \
+  "${SERVICE_URL}/api/yandex/oauth/authorize"
+```
+
+```sh
+curl -i \
+  -u "${YANDEX_OAUTH_CLIENT_ID}:${YANDEX_OAUTH_CLIENT_SECRET}" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data "grant_type=refresh_token&refresh_token=wrong-token" \
+  "${SERVICE_URL}/api/yandex/oauth/token"
 ```
 
 Inspect Cloud Logging for `http server listening`, `yandex request received`, and any Tuya degradation warnings.

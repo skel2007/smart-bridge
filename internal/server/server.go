@@ -13,6 +13,7 @@ import (
 	"github.com/skel2007/smart-bridge/internal/devices"
 	"github.com/skel2007/smart-bridge/internal/tuya"
 	"github.com/skel2007/smart-bridge/internal/yandex"
+	yandexoauth "github.com/skel2007/smart-bridge/internal/yandex/oauth"
 )
 
 const (
@@ -35,7 +36,10 @@ func Run(ctx context.Context, configPath string, logger *slog.Logger) error {
 
 	gateway := newTuyaGateway(cfg, logger)
 	httpServer := &http.Server{
-		Handler:           newMux(cfg, newYandexHandler(cfg, gateway, logger)),
+		Handler: newMux(cfg, yandexHandlers{
+			oauth:    newYandexOAuthHandler(cfg),
+			protocol: newYandexHandler(cfg, gateway, logger),
+		}),
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
@@ -69,12 +73,25 @@ func Run(ctx context.Context, configPath string, logger *slog.Logger) error {
 	}
 }
 
-func newMux(cfg config.Config, yandexHandler http.Handler) http.Handler {
+type yandexHandlers struct {
+	oauth    http.Handler
+	protocol http.Handler
+}
+
+func newMux(cfg config.Config, handlers yandexHandlers) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", serveHealth)
 
 	pattern, stripPrefix := yandexMount(cfg.Yandex.PathPrefix)
-	mux.Handle(pattern, http.StripPrefix(stripPrefix, yandexHandler))
+	mux.Handle(pattern, http.StripPrefix(stripPrefix, newYandexMux(handlers)))
+
+	return mux
+}
+
+func newYandexMux(handlers yandexHandlers) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/oauth/", http.StripPrefix("/oauth", handlers.oauth))
+	mux.Handle("/", handlers.protocol)
 
 	return mux
 }
@@ -112,4 +129,12 @@ func newYandexHandler(cfg config.Config, gateway devices.DeviceGateway, logger *
 		},
 		yandex.WithLogger(logger),
 	)
+}
+
+func newYandexOAuthHandler(cfg config.Config) http.Handler {
+	return yandexoauth.NewHandler(yandexoauth.Config{
+		ClientID:          cfg.Yandex.OAuth.ClientID,
+		ClientSecret:      cfg.Yandex.OAuth.ClientSecret,
+		StaticAccessToken: cfg.Yandex.BearerToken,
+	})
 }

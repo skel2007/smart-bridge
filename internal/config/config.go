@@ -31,9 +31,15 @@ type TuyaConfig struct {
 }
 
 type YandexConfig struct {
-	UserID      string `yaml:"user_id"`
-	BearerToken string `yaml:"bearer_token"`
-	PathPrefix  string `yaml:"path_prefix"`
+	UserID      string      `yaml:"user_id"`
+	BearerToken string      `yaml:"bearer_token"`
+	PathPrefix  string      `yaml:"path_prefix"`
+	OAuth       OAuthConfig `yaml:"oauth"`
+}
+
+type OAuthConfig struct {
+	ClientID     string `yaml:"client_id"`
+	ClientSecret string `yaml:"client_secret"`
 }
 
 func Load(path string) (Config, error) {
@@ -89,6 +95,7 @@ func (cfg YandexConfig) Validate() error {
 	if strings.TrimSpace(cfg.BearerToken) == "" {
 		return errors.New("yandex.bearer_token is required")
 	}
+
 	pathPrefix := strings.TrimSpace(cfg.PathPrefix)
 	if pathPrefix == "" {
 		return errors.New("yandex.path_prefix is required")
@@ -98,6 +105,21 @@ func (cfg YandexConfig) Validate() error {
 	}
 	if len(pathPrefix) > 1 && strings.HasSuffix(pathPrefix, "/") {
 		return errors.New("yandex.path_prefix must not end with /")
+	}
+
+	if err := cfg.OAuth.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cfg OAuthConfig) Validate() error {
+	if strings.TrimSpace(cfg.ClientID) == "" {
+		return errors.New("yandex.oauth.client_id is required")
+	}
+	if strings.TrimSpace(cfg.ClientSecret) == "" {
+		return errors.New("yandex.oauth.client_secret is required")
 	}
 
 	return nil

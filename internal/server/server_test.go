@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewMuxMountsYandexHandlerUnderConfiguredPrefix(t *testing.T) {
+func TestNewMuxRoutesProtocolUnderConfiguredPrefix(t *testing.T) {
 	cfg := config.Config{
 		Yandex: config.YandexConfig{
 			PathPrefix: "/api/yandex",
@@ -19,7 +19,10 @@ func TestNewMuxMountsYandexHandlerUnderConfiguredPrefix(t *testing.T) {
 		require.Equal(t, "/v1.0/user/devices", r.URL.Path)
 		w.WriteHeader(http.StatusNoContent)
 	})
-	mux := newMux(cfg, handler)
+	mux := newMux(cfg, yandexHandlers{
+		oauth:    unexpectedHandler(t, "oauth"),
+		protocol: handler,
+	})
 	request := httptest.NewRequest(http.MethodGet, "/api/yandex/v1.0/user/devices", nil)
 	response := httptest.NewRecorder()
 
@@ -28,7 +31,7 @@ func TestNewMuxMountsYandexHandlerUnderConfiguredPrefix(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, response.Code)
 }
 
-func TestNewMuxCanMountYandexHandlerAtRoot(t *testing.T) {
+func TestNewMuxRoutesProtocolAtRoot(t *testing.T) {
 	cfg := config.Config{
 		Yandex: config.YandexConfig{
 			PathPrefix: "/",
@@ -38,7 +41,10 @@ func TestNewMuxCanMountYandexHandlerAtRoot(t *testing.T) {
 		require.Equal(t, "/v1.0/user/devices", r.URL.Path)
 		w.WriteHeader(http.StatusNoContent)
 	})
-	mux := newMux(cfg, handler)
+	mux := newMux(cfg, yandexHandlers{
+		oauth:    unexpectedHandler(t, "oauth"),
+		protocol: handler,
+	})
 	request := httptest.NewRequest(http.MethodGet, "/v1.0/user/devices", nil)
 	response := httptest.NewRecorder()
 
@@ -47,16 +53,16 @@ func TestNewMuxCanMountYandexHandlerAtRoot(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, response.Code)
 }
 
-func TestNewMuxDoesNotExposeYandexHandlerOutsideConfiguredPrefix(t *testing.T) {
+func TestNewMuxRejectsProtocolOutsideConfiguredPrefix(t *testing.T) {
 	cfg := config.Config{
 		Yandex: config.YandexConfig{
 			PathPrefix: "/api/yandex",
 		},
 	}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
+	mux := newMux(cfg, yandexHandlers{
+		oauth:    unexpectedHandler(t, "oauth"),
+		protocol: unexpectedHandler(t, "protocol"),
 	})
-	mux := newMux(cfg, handler)
 	request := httptest.NewRequest(http.MethodGet, "/v1.0/user/devices", nil)
 	response := httptest.NewRecorder()
 
@@ -65,16 +71,16 @@ func TestNewMuxDoesNotExposeYandexHandlerOutsideConfiguredPrefix(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, response.Code)
 }
 
-func TestNewMuxExposesHealthOutsideYandexPrefix(t *testing.T) {
+func TestNewMuxExposesHealthWhenYandexHandlerIsMountedAtRoot(t *testing.T) {
 	cfg := config.Config{
 		Yandex: config.YandexConfig{
-			PathPrefix: "/api/yandex",
+			PathPrefix: "/",
 		},
 	}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+	mux := newMux(cfg, yandexHandlers{
+		oauth:    unexpectedHandler(t, "oauth"),
+		protocol: unexpectedHandler(t, "protocol"),
 	})
-	mux := newMux(cfg, handler)
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
 
@@ -83,20 +89,57 @@ func TestNewMuxExposesHealthOutsideYandexPrefix(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, response.Code)
 }
 
-func TestNewMuxExposesHealthWhenYandexHandlerIsMountedAtRoot(t *testing.T) {
-	cfg := config.Config{
-		Yandex: config.YandexConfig{
-			PathPrefix: "/",
+func TestNewMuxRoutesOAuthBeforeProtocol(t *testing.T) {
+	tests := []struct {
+		name       string
+		prefix     string
+		requestURL string
+	}{
+		{
+			name:       "under configured prefix",
+			prefix:     "/api/yandex",
+			requestURL: "/api/yandex/oauth/authorize",
+		},
+		{
+			name:       "at root",
+			prefix:     "/",
+			requestURL: "/oauth/authorize",
 		},
 	}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Config{
+				Yandex: config.YandexConfig{
+					PathPrefix: tt.prefix,
+				},
+			}
+			oauthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, "/authorize", r.URL.Path)
+				w.WriteHeader(http.StatusAccepted)
+			})
+			protocolHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusConflict)
+			})
+			mux := newMux(cfg, yandexHandlers{
+				oauth:    oauthHandler,
+				protocol: protocolHandler,
+			})
+			request := httptest.NewRequest(http.MethodGet, tt.requestURL, nil)
+			response := httptest.NewRecorder()
+
+			mux.ServeHTTP(response, request)
+
+			require.Equal(t, http.StatusAccepted, response.Code)
+		})
+	}
+}
+
+func unexpectedHandler(t *testing.T, name string) http.Handler {
+	t.Helper()
+
+	return http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		t.Helper()
+		require.FailNowf(t, "unexpected handler called", "%s received %s", name, r.URL.Path)
 	})
-	mux := newMux(cfg, handler)
-	request := httptest.NewRequest(http.MethodGet, "/health", nil)
-	response := httptest.NewRecorder()
-
-	mux.ServeHTTP(response, request)
-
-	require.Equal(t, http.StatusNoContent, response.Code)
 }

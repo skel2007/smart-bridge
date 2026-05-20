@@ -27,6 +27,9 @@ yandex:
   user_id: your-stable-user-id
   bearer_token: your-strong-bearer-token
   path_prefix: /api/yandex
+  oauth:
+    client_id: smart-bridge
+    client_secret: your-oauth-client-secret
 ```
 
 `config.yaml` contains local secrets and is ignored by git.

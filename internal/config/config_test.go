@@ -27,6 +27,9 @@ yandex:
   user_id: bridge-user
   bearer_token: bearer-token
   path_prefix: /custom/yandex
+  oauth:
+    client_id: oauth-client
+    client_secret: oauth-secret
 `,
 			want: Config{
 				HTTP: HTTPConfig{
@@ -41,6 +44,10 @@ yandex:
 					UserID:      "bridge-user",
 					BearerToken: "bearer-token",
 					PathPrefix:  "/custom/yandex",
+					OAuth: OAuthConfig{
+						ClientID:     "oauth-client",
+						ClientSecret: "oauth-secret",
+					},
 				},
 			},
 		},
@@ -205,58 +212,114 @@ func TestTuyaConfigValidate(t *testing.T) {
 func TestYandexConfigValidate(t *testing.T) {
 	tests := []struct {
 		name    string
-		cfg     YandexConfig
+		mutate  func(*YandexConfig)
 		wantErr string
 	}{
 		{
 			name: "valid",
-			cfg: YandexConfig{
-				UserID:      "bridge-user",
-				BearerToken: "bearer-token",
-				PathPrefix:  DefaultYandexPathPrefix,
-			},
 		},
 		{
 			name: "missing user ID",
-			cfg: YandexConfig{
-				BearerToken: "super-secret",
-				PathPrefix:  DefaultYandexPathPrefix,
+			mutate: func(cfg *YandexConfig) {
+				cfg.UserID = ""
+				cfg.BearerToken = "super-secret"
 			},
 			wantErr: "yandex.user_id is required",
 		},
 		{
 			name: "missing bearer token",
-			cfg: YandexConfig{
-				UserID:     "bridge-user",
-				PathPrefix: DefaultYandexPathPrefix,
+			mutate: func(cfg *YandexConfig) {
+				cfg.BearerToken = ""
 			},
 			wantErr: "yandex.bearer_token is required",
 		},
 		{
 			name: "missing path prefix",
-			cfg: YandexConfig{
-				UserID:      "bridge-user",
-				BearerToken: "super-secret",
+			mutate: func(cfg *YandexConfig) {
+				cfg.BearerToken = "super-secret"
+				cfg.PathPrefix = ""
 			},
 			wantErr: "yandex.path_prefix is required",
 		},
 		{
 			name: "path prefix without leading slash",
-			cfg: YandexConfig{
-				UserID:      "bridge-user",
-				BearerToken: "super-secret",
-				PathPrefix:  "api/yandex",
+			mutate: func(cfg *YandexConfig) {
+				cfg.BearerToken = "super-secret"
+				cfg.PathPrefix = "api/yandex"
 			},
 			wantErr: "yandex.path_prefix must start with /",
 		},
 		{
 			name: "path prefix with trailing slash",
-			cfg: YandexConfig{
-				UserID:      "bridge-user",
-				BearerToken: "super-secret",
-				PathPrefix:  "/api/yandex/",
+			mutate: func(cfg *YandexConfig) {
+				cfg.BearerToken = "super-secret"
+				cfg.PathPrefix = "/api/yandex/"
 			},
 			wantErr: "yandex.path_prefix must not end with /",
+		},
+		{
+			name: "missing OAuth client ID",
+			mutate: func(cfg *YandexConfig) {
+				cfg.BearerToken = "super-secret"
+				cfg.OAuth.ClientID = ""
+			},
+			wantErr: "yandex.oauth.client_id is required",
+		},
+		{
+			name: "missing OAuth client secret",
+			mutate: func(cfg *YandexConfig) {
+				cfg.OAuth.ClientSecret = ""
+			},
+			wantErr: "yandex.oauth.client_secret is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validYandexConfig()
+			if tt.mutate != nil {
+				tt.mutate(&cfg)
+			}
+
+			err := cfg.Validate()
+
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.ErrorContains(t, err, tt.wantErr)
+			require.NotContains(t, err.Error(), "super-secret")
+		})
+	}
+}
+
+func TestOAuthConfigValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     OAuthConfig
+		wantErr string
+	}{
+		{
+			name: "valid",
+			cfg: OAuthConfig{
+				ClientID:     "oauth-client",
+				ClientSecret: "oauth-secret",
+			},
+		},
+		{
+			name: "missing client ID",
+			cfg: OAuthConfig{
+				ClientSecret: "super-secret",
+			},
+			wantErr: "yandex.oauth.client_id is required",
+		},
+		{
+			name: "missing client secret",
+			cfg: OAuthConfig{
+				ClientID: "oauth-client",
+			},
+			wantErr: "yandex.oauth.client_secret is required",
 		},
 	}
 
@@ -272,6 +335,18 @@ func TestYandexConfigValidate(t *testing.T) {
 			require.ErrorContains(t, err, tt.wantErr)
 			require.NotContains(t, err.Error(), "super-secret")
 		})
+	}
+}
+
+func validYandexConfig() YandexConfig {
+	return YandexConfig{
+		UserID:      "bridge-user",
+		BearerToken: "bearer-token",
+		PathPrefix:  DefaultYandexPathPrefix,
+		OAuth: OAuthConfig{
+			ClientID:     "oauth-client",
+			ClientSecret: "oauth-secret",
+		},
 	}
 }
 
