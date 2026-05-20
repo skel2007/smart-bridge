@@ -27,20 +27,38 @@ const (
 
 var errInvalidRedirectURI = errors.New("invalid redirect_uri")
 
-func newRedirectLocation(cfg Config, now func() time.Time, rawRedirectURI string, state string, scope string) (string, error) {
-	redirectURI, ok := validRedirectURI(rawRedirectURI)
+type issuer struct {
+	cfg   Config
+	now   func() time.Time
+	nonce func() (string, error)
+}
+
+type redirectRequest struct {
+	RedirectURI string
+	State       string
+	Scope       string
+}
+
+func newIssuer(cfg Config) issuer {
+	return issuer{
+		cfg:   cfg,
+		now:   time.Now,
+		nonce: randomNonce,
+	}
+}
+
+func (issuer issuer) newRedirectLocation(request redirectRequest) (string, error) {
+	redirectURI, ok := validRedirectURI(request.RedirectURI)
 	if !ok {
 		return "", errInvalidRedirectURI
 	}
 
-	code, err := newToken(
-		cfg,
-		now,
+	code, err := issuer.newToken(
 		claims{
 			Type:        tokenTypeCode,
-			ClientID:    cfg.ClientID,
+			ClientID:    issuer.cfg.ClientID,
 			RedirectURI: redirectURI.String(),
-			Scope:       scope,
+			Scope:       request.Scope,
 		},
 		codeTTL,
 	)
@@ -50,16 +68,16 @@ func newRedirectLocation(cfg Config, now func() time.Time, rawRedirectURI string
 
 	out := redirectURI.Query()
 	out.Set("code", code)
-	if state != "" {
-		out.Set("state", state)
+	if request.State != "" {
+		out.Set("state", request.State)
 	}
 	redirectURI.RawQuery = out.Encode()
 
 	return redirectURI.String(), nil
 }
 
-func exchangeAuthorizationCode(cfg Config, now func() time.Time, code string, redirectURI string) (string, bool) {
-	tokenClaims, ok := parseToken(cfg, now, code, tokenTypeCode)
+func (issuer issuer) exchangeAuthorizationCode(code string, redirectURI string) (string, bool) {
+	tokenClaims, ok := issuer.parseToken(code, tokenTypeCode)
 	if !ok || tokenClaims.RedirectURI == "" || redirectURI != tokenClaims.RedirectURI {
 		return "", false
 	}
@@ -67,8 +85,8 @@ func exchangeAuthorizationCode(cfg Config, now func() time.Time, code string, re
 	return tokenClaims.Scope, true
 }
 
-func exchangeRefreshToken(cfg Config, now func() time.Time, refreshToken string) (string, bool) {
-	tokenClaims, ok := parseToken(cfg, now, refreshToken, tokenTypeRefresh)
+func (issuer issuer) exchangeRefreshToken(refreshToken string) (string, bool) {
+	tokenClaims, ok := issuer.parseToken(refreshToken, tokenTypeRefresh)
 	if !ok {
 		return "", false
 	}
@@ -76,13 +94,13 @@ func exchangeRefreshToken(cfg Config, now func() time.Time, refreshToken string)
 	return tokenClaims.Scope, true
 }
 
-func newToken(cfg Config, now func() time.Time, tokenClaims claims, ttl time.Duration) (string, error) {
-	nonce, err := randomNonce()
+func (issuer issuer) newToken(tokenClaims claims, ttl time.Duration) (string, error) {
+	nonce, err := issuer.nonce()
 	if err != nil {
 		return "", err
 	}
 
-	tokenClaims.ExpiresAt = now().Add(ttl).Unix()
+	tokenClaims.ExpiresAt = issuer.now().Add(ttl).Unix()
 	tokenClaims.Nonce = nonce
 
 	payload, err := json.Marshal(tokenClaims)
@@ -91,18 +109,18 @@ func newToken(cfg Config, now func() time.Time, tokenClaims claims, ttl time.Dur
 	}
 
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
-	signature := signPayload(cfg, encodedPayload)
+	signature := issuer.signPayload(encodedPayload)
 
 	return encodedPayload + "." + signature, nil
 }
 
-func parseToken(cfg Config, now func() time.Time, raw string, wantType string) (claims, bool) {
+func (issuer issuer) parseToken(raw string, wantType string) (claims, bool) {
 	encodedPayload, signature, ok := strings.Cut(raw, ".")
 	if !ok {
 		return claims{}, false
 	}
 
-	if !hmac.Equal([]byte(signature), []byte(signPayload(cfg, encodedPayload))) {
+	if !hmac.Equal([]byte(signature), []byte(issuer.signPayload(encodedPayload))) {
 		return claims{}, false
 	}
 
@@ -116,15 +134,15 @@ func parseToken(cfg Config, now func() time.Time, raw string, wantType string) (
 		return claims{}, false
 	}
 
-	if tokenClaims.Type != wantType || tokenClaims.ClientID != cfg.ClientID || now().Unix() > tokenClaims.ExpiresAt {
+	if tokenClaims.Type != wantType || tokenClaims.ClientID != issuer.cfg.ClientID || issuer.now().Unix() > tokenClaims.ExpiresAt {
 		return claims{}, false
 	}
 
 	return tokenClaims, true
 }
 
-func signPayload(cfg Config, encodedPayload string) string {
-	mac := hmac.New(sha256.New, []byte(cfg.ClientSecret))
+func (issuer issuer) signPayload(encodedPayload string) string {
+	mac := hmac.New(sha256.New, []byte(issuer.cfg.ClientSecret))
 	_, _ = mac.Write([]byte(encodedPayload))
 
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
