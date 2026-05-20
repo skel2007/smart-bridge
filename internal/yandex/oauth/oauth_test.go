@@ -8,10 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testOAuthRedirectURI = "https://dialogs.yandex.ru/callback"
-
-var testOAuthNow = time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC)
-
 func TestNewRedirectLocationReturnsCodeAndState(t *testing.T) {
 	issuer := testIssuer()
 
@@ -131,68 +127,4 @@ func TestExchangeRefreshTokenRejectsAuthorizationCode(t *testing.T) {
 	_, ok := issuer.exchangeRefreshToken(code)
 
 	require.False(t, ok)
-}
-
-func testIssuer() issuer {
-	issuer := newIssuer(testConfig())
-	issuer.now = testTimeAt(testOAuthNow)
-	issuer.nonce = testNonce
-
-	return issuer
-}
-
-func testTimeAt(now time.Time) func() time.Time {
-	return func() time.Time { return now }
-}
-
-func testTimeAfter(delta time.Duration) func() time.Time {
-	return testTimeAt(testOAuthNow.Add(delta))
-}
-
-func testNonce() (string, error) {
-	return "nonce", nil
-}
-
-func testConfig() Config {
-	return Config{
-		ClientID:     "smart-bridge",
-		ClientSecret: "client-secret",
-	}
-}
-
-func newTestAuthorizationCode(t *testing.T, issuer issuer) string {
-	t.Helper()
-
-	code, err := issuer.newToken(
-		claims{
-			Type:        tokenTypeCode,
-			ClientID:    issuer.cfg.ClientID,
-			RedirectURI: testOAuthRedirectURI,
-			Scope:       "devices",
-		},
-		codeTTL,
-	)
-	require.NoError(t, err)
-
-	return code
-}
-
-func newTestRefreshToken(t *testing.T, issuer issuer) string {
-	t.Helper()
-
-	refreshToken, err := issuer.newToken(
-		claims{
-			Type:     tokenTypeRefresh,
-			ClientID: issuer.cfg.ClientID,
-			Scope:    "devices",
-		},
-		tokenLifetime,
-	)
-	require.NoError(t, err)
-
-	return refreshToken
-}
-
-func baseURI(u *url.URL) string {
-	return u.Scheme + "://" + u.Host + u.Path
 }

@@ -13,8 +13,9 @@ import (
 )
 
 type Config struct {
-	ClientID     string
-	ClientSecret string
+	ClientID          string
+	ClientSecret      string
+	StaticAccessToken string
 }
 
 const (
