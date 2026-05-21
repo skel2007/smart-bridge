@@ -45,6 +45,9 @@ Rules:
 - Work step by step.
 - Before starting the next functional step, propose it and wait for explicit approval.
 - Split work into reviewable commits of reasonable size; avoid mixing unrelated decisions in one commit.
+- If the working copy is managed by jj, treat one jj change as the reviewable unit.
+  Prefer `jj status`, `jj diff`, `jj describe`, `jj new`, and `jj squash`;
+  use direct Git history commands only when the user asks for them.
 - After each code-edit iteration, review the written code with a fresh eye and run the relevant checks before proposing a commit.
 - Proactively ask whether to commit only after the latest review pass is complete and the diff is still a reasonable reviewable unit.
 - After committing a reviewable step, summarize the commit briefly, propose the next small step, and wait for explicit approval before starting it.
